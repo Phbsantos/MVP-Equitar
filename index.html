@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário Clínico & Registro Diário</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="js/config.js"></script>
+    <script src="js/auth-api.js"></script>
+    <script src="js/auth-guard.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        clinical: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        blue: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        indigo: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        slate: {
+                            50: '#faf6f0', 100: '#f2ede4', 200: '#dfe0ed', 300: '#c5c7da',
+                            400: '#9b9eb1', 500: '#7d8095', 600: '#60657e', 700: '#454a63',
+                            800: '#2c3049', 900: '#1b2653',
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer components {
+            .btn-primary {
+                @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-clinical-600 text-white font-semibold text-sm shadow-md shadow-clinical-200 hover:bg-clinical-700 active:bg-clinical-800 transition disabled:opacity-60 disabled:cursor-not-allowed;
+            }
+            .btn-secondary {
+                @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition;
+            }
+            .form-input {
+                @apply w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clinical-500 focus:bg-white transition;
+            }
+            .form-label {
+                @apply block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1;
+            }
+            .card {
+                @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+            }
+        }
+    </style>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .status-radio:checked + label {
+            ring-width: 2px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col selection:bg-clinical-100 selection:text-clinical-800">
+
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-slate-900/20 backdrop-blur-[1px] z-40 flex items-center justify-center">
+        <div class="bg-white rounded-2xl px-6 py-4 shadow-xl border border-slate-200 flex items-center gap-3">
+            <i data-lucide="loader-2" class="w-5 h-5 text-clinical-600 animate-spin"></i>
+            <span class="text-sm font-semibold text-slate-700">Carregando agenda...</span>
+        </div>
+    </div>
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-clinical-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-clinical-200">
+                        <i data-lucide="activity" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-slate-900 text-base sm:text-lg leading-tight" id="user-chip-name">—</h1>
+                        <p class="text-xs text-slate-500" id="user-chip-especialidade">—</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    <div class="relative flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                        <i data-lucide="calendar" class="w-4 h-4 text-slate-500 ml-2 mr-1"></i>
+                        <input type="date" id="selected-date" class="bg-transparent text-xs sm:text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer pr-1">
+                    </div>
+
+                    <button id="refresh-btn" class="p-2 text-slate-400 hover:text-clinical-600 rounded-lg hover:bg-slate-100 transition" title="Atualizar agenda">
+                        <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                    </button>
+
+                    <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span id="user-chip-role">Perfil</span>
+                    </div>
+
+                    <button class="relative p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition" title="Notificações">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full"></span>
+                    </button>
+
+                    <button onclick="AuthApi.logout()" class="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition" title="Sair">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2 overflow-x-auto">
+            <a href="index.html" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-clinical-50 text-clinical-700 border border-clinical-200 whitespace-nowrap">Minha Agenda</a>
+            <a href="relatorios.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Relatórios</a>
+            <a href="supervisor.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Supervisor</a>
+            <a href="coordenacao.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Coordenação</a>
+            <a href="cadastros.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Cadastros</a>
+        </div>
+    </nav>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
+        <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">Agendados Hoje</p>
+                    <p id="stat-total" class="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">0</p>
+                </div>
+                <div class="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">Realizados</p>
+                    <p id="stat-completed" class="text-xl sm:text-2xl font-bold text-emerald-600 mt-0.5">0</p>
+                </div>
+                <div class="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                    <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">Pendentes</p>
+                    <p id="stat-pending" class="text-xl sm:text-2xl font-bold text-amber-600 mt-0.5">0</p>
+                </div>
+                <div class="p-2.5 bg-amber-50 text-amber-600 rounded-lg">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">Faltas / Cancelados</p>
+                    <p id="stat-absent" class="text-xl sm:text-2xl font-bold text-rose-600 mt-0.5">0</p>
+                </div>
+                <div class="p-2.5 bg-rose-50 text-rose-600 rounded-lg">
+                    <i data-lucide="user-x" class="w-5 h-5"></i>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[750px]">
+                <div class="p-4 border-b border-slate-100 bg-slate-50/50 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                            <i data-lucide="list-checks" class="w-5 h-5 text-clinical-600"></i>
+                            Agenda de Atendimentos
+                        </h2>
+                        <span id="patient-count-badge" class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">
+                            0 Pacientes
+                        </span>
+                    </div>
+
+                    <div class="relative">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                        <input type="text" id="patient-search" placeholder="Buscar paciente por nome..." class="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-clinical-500 transition">
+                    </div>
+
+                    <div class="flex gap-1 p-1 bg-slate-200/60 rounded-lg text-xs font-medium">
+                        <button onclick="filterPatients('all')" id="filter-all" class="filter-btn flex-1 py-1 rounded-md text-center bg-white shadow-sm text-slate-800 font-semibold transition">Todos</button>
+                        <button onclick="filterPatients('pending')" id="filter-pending" class="filter-btn flex-1 py-1 rounded-md text-center text-slate-600 hover:text-slate-900 transition">Pendentes</button>
+                        <button onclick="filterPatients('done')" id="filter-done" class="filter-btn flex-1 py-1 rounded-md text-center text-slate-600 hover:text-slate-900 transition">Concluídos</button>
+                    </div>
+                </div>
+
+                <div id="patient-list-container" class="divide-y divide-slate-100 overflow-y-auto flex-1 p-2 space-y-1"></div>
+            </section>
+
+            <section class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div id="empty-state" class="p-12 text-center space-y-4">
+                    <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+                        <i data-lucide="user-check" class="w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-700">Nenhum Paciente Selecionado</h3>
+                        <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">Selecione um paciente na lista ao lado para registrar a presença, digitar o prontuário e atualizar a evolução clínica.</p>
+                    </div>
+                </div>
+
+                <div id="patient-form-panel" class="hidden p-4 sm:p-6 space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+                        <div class="flex items-start gap-3">
+                            <div id="active-avatar" class="w-12 h-12 rounded-xl bg-clinical-100 text-clinical-700 font-bold flex items-center justify-center text-lg shrink-0 border border-clinical-200">
+                                --
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h2 id="active-name" class="text-lg font-bold text-slate-900">—</h2>
+                                    <span id="active-status-badge" class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                        Pendente
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">
+                                    <span id="active-age">—</span> • Prontuário: <span id="active-id" class="font-mono text-slate-700">—</span>
+                                </p>
+                                <p id="active-specialty" class="text-xs font-medium text-clinical-600 mt-0.5">—</p>
+                            </div>
+                        </div>
+
+                        <button onclick="openHistoryModal()" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shrink-0 shadow-sm">
+                            <i data-lucide="history" class="w-4 h-4 text-slate-500"></i>
+                            Ver Histórico
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                            1. Status de Presença do Atendimento <span class="text-rose-500">*</span>
+                        </label>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <label class="relative flex items-center p-3 rounded-xl border cursor-pointer transition hover:bg-emerald-50/40 group border-slate-200" id="label-status-realizado">
+                                <input type="radio" name="attendance-status" value="realizado" class="sr-only status-radio" checked onchange="handleStatusChange('realizado')">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mr-3 group-hover:scale-105 transition">
+                                    <i data-lucide="check" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-900 group-hover:text-emerald-900">Realizado</p>
+                                    <p class="text-[11px] text-slate-500">Sessão executada normalmente</p>
+                                </div>
+                            </label>
+
+                            <label class="relative flex items-center p-3 rounded-xl border cursor-pointer transition hover:bg-rose-50/40 group border-slate-200" id="label-status-falta">
+                                <input type="radio" name="attendance-status" value="falta" class="sr-only status-radio" onchange="handleStatusChange('falta')">
+                                <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center mr-3 group-hover:scale-105 transition">
+                                    <i data-lucide="x" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-900 group-hover:text-rose-900">Falta sem Aviso</p>
+                                    <p class="text-[11px] text-slate-500">Paciente não compareceu</p>
+                                </div>
+                            </label>
+
+                            <label class="relative flex items-center p-3 rounded-xl border cursor-pointer transition hover:bg-amber-50/40 group border-slate-200" id="label-status-desmarcado">
+                                <input type="radio" name="attendance-status" value="desmarcado" class="sr-only status-radio" onchange="handleStatusChange('desmarcado')">
+                                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center mr-3 group-hover:scale-105 transition">
+                                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-900 group-hover:text-amber-900">Desmarcado c/ Aviso</p>
+                                    <p class="text-[11px] text-slate-500">Aviso prévio do paciente</p>
+                                </div>
+                            </label>
+
+                            <label class="relative flex items-center p-3 rounded-xl border cursor-pointer transition hover:bg-slate-100/60 group border-slate-200" id="label-status-cancelado">
+                                <input type="radio" name="attendance-status" value="cancelado" class="sr-only status-radio" onchange="handleStatusChange('cancelado')">
+                                <div class="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center mr-3 group-hover:scale-105 transition">
+                                    <i data-lucide="ban" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-900 group-hover:text-slate-900">Cancelado Terapeuta</p>
+                                    <p class="text-[11px] text-slate-500">Imprevisto profissional/clínica</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="justification-container" class="hidden bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-2 transition-all">
+                        <label for="justification-text" class="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+                            Justificativa e Observações da Ausência/Cancelamento <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="text" id="justification-text" placeholder="Ex: Paciente informou sintomas gripais via WhatsApp às 07:30..." class="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <label for="clinical-notes" class="block text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                                <i data-lucide="file-text" class="w-4 h-4 text-clinical-600"></i>
+                                2. Relato do Atendimento / Evolução Clínica
+                            </label>
+
+                            <div class="flex items-center gap-1 flex-wrap">
+                                <span class="text-[11px] text-slate-400 font-medium mr-1 hidden sm:inline">Modelos:</span>
+                                <button type="button" onclick="insertTemplate('padrao')" class="text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ Geral</button>
+                                <button type="button" onclick="insertTemplate('avd')" class="text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ AVDs</button>
+                                <button type="button" onclick="insertTemplate('sensorial')" class="text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ Integ. Sensorial</button>
+                            </div>
+                        </div>
+
+                        <div class="relative">
+                            <textarea id="clinical-notes" rows="7" oninput="updateCharCount()" placeholder="Digitar relato detalhado da sessão, atividades desenvolvidas, conduta terapêutica, respostas do paciente e planejamento para os próximos encontros..." class="form-input text-xs sm:text-sm leading-relaxed shadow-inner"></textarea>
+
+                            <div class="flex items-center justify-between mt-1 px-1">
+                                <button type="button" onclick="toggleVoiceSim()" id="mic-btn" class="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-clinical-600 transition">
+                                    <i data-lucide="mic" class="w-3.5 h-3.5" id="mic-icon"></i>
+                                    <span id="mic-text">Simular Ditado por Voz</span>
+                                </button>
+                                <div class="text-[11px] text-slate-400 font-mono">
+                                    <span id="char-count">0</span> caracteres
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <label class="form-label normal-case">Nível de Engajamento / Humor</label>
+                            <select id="engagement-level" class="form-input text-xs">
+                                <option value="excelente">Excelente / Muito Colaborativo</option>
+                                <option value="adequado" selected>Adequado / Estável</option>
+                                <option value="parcial">Parcialmente Engajado / Atencioso</option>
+                                <option value="resistente">Resistência / Agitação</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label normal-case">Recomendação Pós-Sessão</label>
+                            <input type="text" id="next-steps" placeholder="Ex: Orientação de exercícios para casa..." class="form-input text-xs">
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3">
+                        <button type="button" onclick="resetForm()" class="btn-secondary w-full sm:w-auto">
+                            Descartar Alterações
+                        </button>
+
+                        <button type="button" id="save-btn" onclick="saveAttendance()" class="btn-primary w-full sm:w-auto">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            Salvar e Enviar Atendimento
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="history-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                        <i data-lucide="file-clock" class="w-5 h-5 text-clinical-600"></i>
+                        Histórico de Atendimentos
+                    </h3>
+                    <p id="modal-patient-info" class="text-xs text-slate-500">—</p>
+                </div>
+                <button onclick="closeHistoryModal()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="modal-history-content" class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1"></div>
+
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <button onclick="closeHistoryModal()" class="btn-secondary text-xs">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

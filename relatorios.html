@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico de Prontuários - Clínica Integrada</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth-api.js"></script>
+    <script src="js/auth-guard.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        clinical: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        blue: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        indigo: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        slate: {
+                            50: '#faf6f0', 100: '#f2ede4', 200: '#dfe0ed', 300: '#c5c7da',
+                            400: '#9b9eb1', 500: '#7d8095', 600: '#60657e', 700: '#454a63',
+                            800: '#2c3049', 900: '#1b2653',
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer components {
+            .btn-primary {
+                @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-clinical-600 text-white font-semibold text-sm shadow-md shadow-clinical-200 hover:bg-clinical-700 active:bg-clinical-800 transition disabled:opacity-60 disabled:cursor-not-allowed;
+            }
+            .btn-secondary {
+                @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition;
+            }
+            .form-input {
+                @apply w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clinical-500 focus:bg-white transition;
+            }
+            .form-label {
+                @apply block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1;
+            }
+            .card {
+                @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <header class="bg-blue-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-600 rounded-lg">
+                    <i class="ph ph-files text-3xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold leading-tight">Histórico de Prontuários</h1>
+                    <p class="text-blue-200 text-sm md:text-base">Relatórios de Evoluções e Atendimentos</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <div class="hidden sm:block text-right">
+                    <span class="block text-sm font-semibold text-white" id="user-chip-name">—</span>
+                    <span class="block text-[11px] text-blue-200" id="user-chip-role">—</span>
+                </div>
+
+                <a href="index.html" class="flex-1 sm:flex-none bg-blue-800 hover:bg-blue-900 transition-colors text-white text-sm font-medium py-2 px-4 rounded-lg border border-blue-600 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-700">
+                    <i class="ph ph-calendar-blank text-lg"></i>
+                    Voltar à Agenda
+                </a>
+
+                <button onclick="AuthApi.logout()" class="p-2 text-blue-200 hover:text-white hover:bg-white/10 rounded-lg transition" title="Sair">
+                    <i class="ph ph-sign-out text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2 overflow-x-auto">
+            <a href="index.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Minha Agenda</a>
+            <a href="relatorios.html" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">Relatórios</a>
+            <a href="supervisor.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Supervisor</a>
+            <a href="coordenacao.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Coordenação</a>
+            <a href="cadastros.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Cadastros</a>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-8">
+            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Filtros de Busca</h2>
+            
+            <form id="filterForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <div class="flex flex-col gap-1">
+                    <label for="patientName" class="text-sm font-medium text-slate-700">Nome do Paciente</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="ph ph-user text-slate-400"></i>
+                        </div>
+                        <input type="text" id="patientName" placeholder="Ex: Maria Silva"
+                            class="form-input pl-10">
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label for="startDate" class="text-sm font-medium text-slate-700">Data Inicial</label>
+                    <input type="date" id="startDate" class="form-input">
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label for="endDate" class="text-sm font-medium text-slate-700">Data Final</label>
+                    <input type="date" id="endDate" class="form-input">
+                </div>
+
+                <div class="flex gap-2 w-full lg:justify-end">
+                    <button type="button" id="clearBtn" class="btn-secondary flex-1 lg:flex-none">
+                        Limpar
+                    </button>
+                    <button type="submit" class="btn-primary flex-1 lg:flex-none">
+                        <i class="ph ph-magnifying-glass text-lg"></i>
+                        Buscar
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    Resultados Encontrados
+                    <span id="resultsCount" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200">
+                        0
+                    </span>
+                </h2>
+            </div>
+
+            <div id="recordsContainer" class="flex flex-col gap-4">
+            </div>
+            
+            <div id="emptyState" class="hidden flex-col items-center justify-center py-12 text-center bg-white rounded-xl border border-slate-200 border-dashed">
+                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                    <i class="ph ph-magnifying-glass text-3xl"></i>
+                </div>
+                <h3 class="text-slate-800 font-medium text-lg">Nenhum prontuário encontrado</h3>
+                <p class="text-slate-500 text-sm max-w-sm mt-1">Tente ajustar os filtros de busca para encontrar o que você está procurando.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/relatorios-api.js"></script>
+    <script src="js/relatorios.js"></script>
+</body>
+</html>

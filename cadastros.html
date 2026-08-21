@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastros - Clínica Integrada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="js/config.js"></script>
+    <script src="js/auth-api.js"></script>
+    <script src="js/auth-guard.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        clinical: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        blue: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        indigo: {
+                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
+                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
+                            800: '#0d6055', 900: '#0a4a41',
+                        },
+                        slate: {
+                            50: '#faf6f0', 100: '#f2ede4', 200: '#dfe0ed', 300: '#c5c7da',
+                            400: '#9b9eb1', 500: '#7d8095', 600: '#60657e', 700: '#454a63',
+                            800: '#2c3049', 900: '#1b2653',
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer components {
+            .btn-primary {
+                @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-clinical-600 text-white font-semibold text-sm shadow-md shadow-clinical-200 hover:bg-clinical-700 active:bg-clinical-800 transition disabled:opacity-60 disabled:cursor-not-allowed;
+            }
+            .btn-secondary {
+                @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition;
+            }
+            .form-input {
+                @apply w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clinical-500 focus:bg-white transition;
+            }
+            .form-label {
+                @apply block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1;
+            }
+            .card {
+                @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col selection:bg-clinical-100 selection:text-clinical-800">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-clinical-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-clinical-200">
+                        <i data-lucide="user-plus" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-slate-900 text-base sm:text-lg leading-tight">Cadastros</h1>
+                        <p class="text-xs text-slate-500">Novos pacientes e usuários da equipe</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="hidden sm:block text-right">
+                        <span class="block text-sm font-semibold text-slate-900" id="user-chip-name">—</span>
+                        <span class="block text-[11px] text-slate-500" id="user-chip-role">—</span>
+                    </div>
+
+                    <button onclick="AuthApi.logout()" class="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition" title="Sair">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2 overflow-x-auto">
+            <a href="index.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Minha Agenda</a>
+            <a href="relatorios.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Relatórios</a>
+            <a href="supervisor.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Supervisor</a>
+            <a href="coordenacao.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Coordenação</a>
+            <a href="cadastros.html" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-clinical-50 text-clinical-700 border border-clinical-200 whitespace-nowrap">Cadastros</a>
+        </div>
+    </nav>
+
+    <main class="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <div class="flex gap-1 p-1 bg-slate-200/60 rounded-lg text-sm font-medium max-w-sm">
+            <button id="tab-btn-paciente" onclick="switchCadastroTab('paciente')" class="flex-1 py-2 rounded-md text-center bg-white shadow-sm text-slate-800 font-semibold transition">
+                Novo Paciente
+            </button>
+            <button id="tab-btn-usuario" onclick="switchCadastroTab('usuario')" class="flex-1 py-2 rounded-md text-center text-slate-600 hover:text-slate-900 transition">
+                Novo Usuário
+            </button>
+        </div>
+
+        <section id="tab-paciente" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h2 class="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
+                <i data-lucide="user-round" class="w-5 h-5 text-clinical-600"></i>
+                Cadastrar Paciente
+            </h2>
+
+            <form id="form-paciente" onsubmit="handlePacienteSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="form-label">Nome Completo <span class="text-rose-500">*</span></label>
+                    <input type="text" id="paciente-nome-completo" required placeholder="Ex: Gabriel Souza" class="form-input">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Data de Nascimento <span class="text-rose-500">*</span></label>
+                        <input type="date" id="paciente-data-nascimento" required class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">Status</label>
+                        <select id="paciente-status" class="form-input">
+                            <option value="Em Acompanhamento" selected>Em Acompanhamento</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Inativo">Inativo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label">Nome do Responsável <span class="text-rose-500">*</span></label>
+                    <input type="text" id="paciente-responsavel-nome" required placeholder="Ex: Mariana Souza" class="form-input">
+                </div>
+
+                <div>
+                    <label class="form-label">WhatsApp do Responsável <span class="text-rose-500">*</span></label>
+                    <input type="text" id="paciente-telefone-whatsapp" required placeholder="Ex: +5579977776666" class="form-input">
+                </div>
+
+                <div>
+                    <label class="form-label">Terapeuta Responsável <span class="text-rose-500">*</span></label>
+                    <input type="text" id="paciente-terapeuta-responsavel" required placeholder="Carregando terapeutas..." disabled class="form-input">
+                </div>
+
+                <div class="pt-2 flex justify-end">
+                    <button type="submit" id="paciente-submit-btn" class="btn-primary">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Cadastrar Paciente
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section id="tab-usuario" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h2 class="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
+                <i data-lucide="user-cog" class="w-5 h-5 text-clinical-600"></i>
+                Cadastrar Usuário
+            </h2>
+
+            <form id="form-usuario" onsubmit="handleUsuarioSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="form-label">Nome <span class="text-rose-500">*</span></label>
+                    <input type="text" id="usuario-nome" required placeholder="Ex: Dra. Camila Torres" class="form-input">
+                </div>
+
+                <div>
+                    <label class="form-label">E-mail <span class="text-rose-500">*</span></label>
+                    <input type="email" id="usuario-email" required placeholder="Ex: camila.torres@clinica.com" class="form-input">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Perfil / Role <span class="text-rose-500">*</span></label>
+                        <select id="usuario-perfil-role" class="form-input">
+                            <option value="Terapeuta" selected>Terapeuta</option>
+                            <option value="Supervisor">Supervisor</option>
+                            <option value="Coordenador">Coordenador</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Status</label>
+                        <select id="usuario-status" class="form-input">
+                            <option value="Ativo" selected>Ativo</option>
+                            <option value="Inativo">Inativo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label">Especialidade</label>
+                    <input type="text" id="usuario-especialidade" placeholder="Ex: Fisioterapia" class="form-input">
+                </div>
+
+                <div class="pt-2 flex justify-end">
+                    <button type="submit" id="usuario-submit-btn" class="btn-primary">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Cadastrar Usuário
+                    </button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script src="js/usuarios-api.js"></script>
+    <script src="js/autocomplete.js"></script>
+    <script src="js/cadastro-api.js"></script>
+    <script src="js/cadastros.js"></script>
+</body>
+</html>

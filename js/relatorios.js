@@ -1,0 +1,164 @@
+const statusConfig = {
+    'Realizado': {
+        classes: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        icon: 'ph-check-circle',
+    },
+    'Falta sem Aviso': {
+        classes: 'bg-red-50 text-red-700 border-red-200',
+        icon: 'ph-x-circle',
+    },
+    'Desmarcado com Aviso': {
+        classes: 'bg-amber-50 text-amber-700 border-amber-200',
+        icon: 'ph-warning-circle',
+    },
+    Desmarcado: {
+        classes: 'bg-amber-50 text-amber-700 border-amber-200',
+        icon: 'ph-warning-circle',
+    },
+};
+
+const container = document.getElementById('recordsContainer');
+const emptyState = document.getElementById('emptyState');
+const countBadge = document.getElementById('resultsCount');
+const filterForm = document.getElementById('filterForm');
+const clearBtn = document.getElementById('clearBtn');
+const nameInput = document.getElementById('patientName');
+const startDateInput = document.getElementById('startDate');
+const endDateInput = document.getElementById('endDate');
+const submitBtn = filterForm.querySelector('button[type="submit"]');
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
+
+function getStatusConfig(status) {
+    return statusConfig[status] || statusConfig['Realizado'];
+}
+
+function createRecordCard(record) {
+    const config = getStatusConfig(record.status);
+
+    return `
+        <article class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        ${escapeHtml(record.patientName)}
+                    </h3>
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-slate-600">
+                        <span class="flex items-center gap-1">
+                            <i class="ph ph-user-md text-slate-400"></i>
+                            ${escapeHtml(record.therapistName)}
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <i class="ph ph-calendar-blank text-slate-400"></i>
+                            ${escapeHtml(record.date)} às ${escapeHtml(record.time)}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-medium ${config.classes} self-start">
+                    <i class="ph ${config.icon} text-lg"></i>
+                    ${escapeHtml(record.status)}
+                </div>
+            </div>
+
+            <hr class="border-slate-100 my-3">
+
+            <div class="text-slate-700 text-sm leading-relaxed whitespace-pre-line">
+                <strong class="text-slate-800 font-semibold mb-1 block text-xs uppercase tracking-wider">Anotação Clínica / Ocorrência:</strong>
+                ${escapeHtml(record.notes)}
+            </div>
+        </article>
+    `;
+}
+
+function renderLoadingState() {
+    container.innerHTML = `
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+            <div class="flex flex-col items-center justify-center gap-3 text-slate-500">
+                <i class="ph ph-spinner text-3xl animate-spin text-blue-600"></i>
+                <p class="text-sm font-medium text-slate-700">Carregando prontuários...</p>
+            </div>
+        </div>
+    `;
+    container.classList.remove('hidden');
+    emptyState.classList.add('hidden');
+    emptyState.classList.remove('flex');
+    countBadge.textContent = '...';
+}
+
+function renderRecords(dataToRender) {
+    container.innerHTML = '';
+
+    if (dataToRender.length === 0) {
+        container.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+    } else {
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+        container.classList.remove('hidden');
+        container.innerHTML = dataToRender.map(createRecordCard).join('');
+    }
+
+    countBadge.textContent = dataToRender.length;
+}
+
+function setSubmitLoading(isLoading) {
+    if (isLoading) {
+        submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i> Buscando...';
+        submitBtn.disabled = true;
+        return;
+    }
+
+    submitBtn.innerHTML = submitBtn.dataset.originalHtml || '<i class="ph ph-magnifying-glass text-lg"></i> Buscar';
+    submitBtn.disabled = false;
+}
+
+function getFiltersFromForm() {
+    return {
+        paciente_nome: nameInput.value,
+        data_inicio: startDateInput.value,
+        data_fim: endDateInput.value,
+    };
+}
+
+async function loadRelatorios(filters = {}) {
+    renderLoadingState();
+    setSubmitLoading(true);
+
+    try {
+        const records = await RelatoriosApi.fetchRelatorios(filters);
+        renderRecords(records);
+    } catch (error) {
+        console.error(error);
+        renderRecords([]);
+        container.classList.remove('hidden');
+        container.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-red-200 p-6 text-center">
+                <p class="text-red-700 text-sm font-medium">${error.message || 'Não foi possível carregar os prontuários.'}</p>
+            </div>
+        `;
+        countBadge.textContent = '0';
+    } finally {
+        setSubmitLoading(false);
+    }
+}
+
+filterForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    loadRelatorios(getFiltersFromForm());
+});
+
+clearBtn.addEventListener('click', () => {
+    filterForm.reset();
+    loadRelatorios();
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadRelatorios();
+});
