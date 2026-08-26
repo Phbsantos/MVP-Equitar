@@ -69,6 +69,7 @@ async function handlePacienteSubmit(event) {
         telefoneWhatsapp: document.getElementById('paciente-telefone-whatsapp').value.trim(),
         status: document.getElementById('paciente-status').value,
         terapeutaResponsavelNome: document.getElementById('paciente-terapeuta-responsavel').value.trim(),
+        planoSaude: document.getElementById('paciente-plano-saude').value.trim(),
     });
 
     try {
@@ -100,6 +101,8 @@ async function handleUsuarioSubmit(event) {
         perfilRole: document.getElementById('usuario-perfil-role').value,
         especialidade: document.getElementById('usuario-especialidade').value.trim(),
         status: document.getElementById('usuario-status').value,
+        numeroConselho: document.getElementById('usuario-numero-conselho').value.trim(),
+        equipeNome: document.getElementById('usuario-equipe').value,
     });
 
     try {
@@ -145,8 +148,34 @@ async function loadTerapeutasOptions() {
     }
 }
 
+async function loadEquipesOptions() {
+    const select = document.getElementById('usuario-equipe');
+
+    try {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_EQUIPES}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Erro ao carregar equipes (${response.status})`);
+
+        const data = await response.json();
+        const equipes = Array.isArray(data) ? data : data.records || [];
+        const nomes = equipes.map((e) => (e.fields || e).Nome_Equipe).filter(Boolean);
+
+        nomes.forEach((nome) => {
+            const option = document.createElement('option');
+            option.value = nome;
+            option.textContent = nome;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error(error);
+        // Falha silenciosa proposital: Equipe é opcional no cadastro, não
+        // vale travar a tela inteira por causa disso.
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     terapeutaAutocomplete = attachAutocomplete(document.getElementById('paciente-terapeuta-responsavel'), { options: [] });
     loadTerapeutasOptions();
+    loadEquipesOptions();
 });

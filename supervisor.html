@@ -28,6 +28,11 @@
         <i class="fa-solid fa-plus text-sm"></i>
         <span class="hidden sm:inline">Agendar Sessão Avulsa</span>
     </button>
+    <button onclick="RelatorioAvulsoModal.open()" class="fixed bottom-24 right-6 z-40 btn-fab" title="Novo Relatório Avulso">
+        <i data-lucide="file-plus" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Novo Relatório Avulso</span>
+    </button>
+    <div id="relatorio-avulso-root"></div>
 
     <div class="app-shell">
     <aside id="sidebar-root"></aside>
@@ -314,6 +319,11 @@
     <script src="js/usuarios-api.js"></script>
     <script src="js/pacientes-api.js"></script>
     <script src="js/autocomplete.js"></script>
+    <script src="js/cadastro-api.js"></script>
+    <script src="js/components/relatorio-avulso.js"></script>
+    <script>
+        RelatorioAvulsoModal.mount('relatorio-avulso-root');
+    </script>
     <script src="js/supervisor-api.js"></script>
     <script src="js/supervisor.js"></script>
 </body>

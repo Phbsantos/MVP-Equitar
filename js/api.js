@@ -81,12 +81,18 @@ const ApiService = {
             fields.Nome ||
             `Paciente #${record.id.slice(-6)}`;
         const therapistName = this.resolveLinkedName(fields, 'Terapeuta_Nome', 'Nome (from Terapeuta_Nome)');
+        // Terapeuta_Nome (o campo de link puro) já vem como o record ID do
+        // Airtable — é exatamente isso que queremos aqui, sem precisar de
+        // lookup nenhum. Filtrar por ID é exato (sem risco de nome parcial
+        // batendo errado) e session.id já É esse mesmo ID, desde o login.
+        const therapistId = this.firstOrValue(fields.Terapeuta_Nome);
 
         return {
             id: record.id,
             patientKey: name.toLowerCase().trim(),
             name,
             therapistName,
+            therapistId,
             age: fields.Idade_Paciente || '',
             time: this.formatTime(fields.Data_Hora),
             specialty: fields.Especialidade || 'Terapia Ocupacional',
@@ -114,14 +120,17 @@ const ApiService = {
             }));
     },
 
+    // 2026-08-26: decisão — filtragem fica 100% no cliente. A API
+    // /listar/atendimentos ignora qualquer query string (testado), então
+    // a rota escolhida é: trazer tudo e filtrar aqui. Filtro por ID do
+    // terapeuta (session.id, o record ID do Airtable de quem logou), não
+    // por nome — exato, sem ambiguidade de maiúsculas/acento/nome parcial.
+    // Sem session.id não filtra nada e não mostra nada (falha fechada:
+    // é dado de paciente, não é pra vazar por engano).
     async fetchAtendimentosDia(date) {
         const session = AuthApi.getSession();
-        const terapeutaNome = ((session && session.nome) || CONFIG.TERAPEUTA).trim().toLowerCase();
+        const terapeutaId = session && session.id;
 
-        // 2026-08-26: /listar/atendimentos (base nova) ignora qualquer
-        // query string — confirmado testando ?terapeuta= e ?paciente_nome=,
-        // sempre devolve a tabela inteira. Até o n8n filtrar no servidor,
-        // filtramos aqui por terapeuta e data.
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}`;
         const response = await fetch(url);
 
@@ -135,7 +144,7 @@ const ApiService = {
         return records
             .map((record) => this.transformAtendimento(record))
             .filter((patient) => {
-                const matchesTerapeuta = patient.therapistName.trim().toLowerCase() === terapeutaNome;
+                const matchesTerapeuta = Boolean(terapeutaId) && patient.therapistId === terapeutaId;
                 const matchesData = !date || (patient.dataHora || '').slice(0, 10) === date;
                 return matchesTerapeuta && matchesData;
             })

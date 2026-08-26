@@ -90,6 +90,9 @@ const SupervisorApi = {
                 fields.Nome ||
                 'Paciente não informado',
             terapeuta: this.resolveLinkedName(fields, 'Terapeuta_Nome', 'Nome (from Terapeuta_Nome)') || 'Terapeuta não informado',
+            // Terapeuta_Nome puro já é o record ID — usado pra filtrar por
+            // equipe com exatidão, sem depender de comparação de nome.
+            terapeutaId: this.firstOrValue(fields.Terapeuta_Nome),
             supervisor: this.resolveLinkedName(fields, 'Supervisor_Nome', 'Nome (from Supervisor_Nome)') || CONFIG.SUPERVISOR_NOME,
             especialidade: fields.Especialidade || 'Multiprofissional',
             horario: this.formatTimeRange(fields.Data_Hora),
@@ -103,13 +106,11 @@ const SupervisorApi = {
 
     // 2026-08-26: /supervisor/equipe-dia não existe na base nova — a lista
     // de endpoints não trouxe substituto direto. Reconstruído a partir de
-    // /listar/equipes (corrigido nesta mesma data — antes devolvia a
-    // tabela errada) + /listar/atendimentos (filtrado no cliente, já que o
-    // endpoint ignora query string — ver nota em ApiService.fetchAtendimentosDia).
-    // O campo Membros já vem como rollup com os nomes prontos (não precisa
-    // resolver link por ID); Supervisor é resolvido via o lookup
-    // "Nome (from Supervisor)".
-    async fetchEquipeMembros(supervisorNome) {
+    // /listar/equipes + /listar/atendimentos, filtrando 100% no cliente
+    // (a API ignora query string). Filtro por ID, não por nome: "Supervisor"
+    // e "Usuários" (o link de verdade da equipe, não o rollup "Membros" de
+    // nomes) já trazem record ID — exato, sem depender de acento/capitalização.
+    async fetchEquipeMembroIds(supervisorId) {
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_EQUIPES}`;
         const response = await fetch(url);
 
@@ -119,26 +120,33 @@ const SupervisorApi = {
 
         const data = await response.json();
         const equipes = this.normalizeRecordsResponse(data);
-        const normalizedSupervisor = supervisorNome.trim().toLowerCase();
 
         const equipe = equipes.find((record) => {
             const fields = record.fields || record;
-            const supervisorDaEquipe = this.firstOrValue(fields['Nome (from Supervisor)']);
-            return (supervisorDaEquipe || '').trim().toLowerCase() === normalizedSupervisor;
+            const supervisorIds = Array.isArray(fields.Supervisor) ? fields.Supervisor : [];
+            return supervisorIds.includes(supervisorId);
         });
 
-        if (!equipe) return [supervisorNome];
+        if (!equipe) return [supervisorId];
 
         const fields = equipe.fields || equipe;
-        const membros = Array.isArray(fields.Membros) ? fields.Membros : [];
-        return membros.length ? membros : [supervisorNome];
+        const membroIds = Array.isArray(fields['Usuários']) ? fields['Usuários'] : [];
+        return membroIds.length ? membroIds : [supervisorId];
     },
+
+    // 2026-08-26: Coordenador/Admin não são supervisor de equipe nenhuma
+    // (só Juliana e Camila são, hoje) — sem esse caso especial, o filtro de
+    // equipe abaixo sempre dava 0 pra eles. Decisão: Coordenador/Admin
+    // pulam o filtro de equipe e veem tudo aqui também, igual já viam na
+    // aba Atendimentos da tela Coordenação.
+    VE_TUDO_SEM_FILTRO_DE_EQUIPE: ['Coordenador', 'Admin'],
 
     async fetchEquipeDia(date) {
         const session = AuthApi.getSession();
-        const supervisorNome = (session && session.nome) || CONFIG.SUPERVISOR_NOME;
+        const supervisorId = session && session.id;
+        const vePapelSemEquipe = session && this.VE_TUDO_SEM_FILTRO_DE_EQUIPE.includes(session.perfilRole);
 
-        const membros = (await this.fetchEquipeMembros(supervisorNome)).map((nome) => nome.trim().toLowerCase());
+        const membroIds = !vePapelSemEquipe && supervisorId ? await this.fetchEquipeMembroIds(supervisorId) : [];
 
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}`;
         const response = await fetch(url);
@@ -151,7 +159,7 @@ const SupervisorApi = {
         return this.normalizeRecordsResponse(data)
             .map((record) => this.transformEquipeRecord(record))
             .filter((item) => {
-                const matchesEquipe = membros.includes(item.terapeuta.trim().toLowerCase());
+                const matchesEquipe = vePapelSemEquipe || membroIds.includes(item.terapeutaId);
                 const matchesData = !date || (item.dataHora || '').slice(0, 10) === date;
                 return matchesEquipe && matchesData;
             })

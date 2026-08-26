@@ -76,6 +76,12 @@
                 <div>
                     <label class="form-label">Terapeuta Responsável <span class="text-rose-500">*</span></label>
                     <input type="text" id="paciente-terapeuta-responsavel" required placeholder="Carregando terapeutas..." disabled class="form-input">
+                    <p class="text-[11px] mt-1" style="color:var(--warn)">O vínculo com o terapeuta ainda não é gravado automaticamente pela API — confira depois no Airtable.</p>
+                </div>
+
+                <div>
+                    <label class="form-label">Plano de Saúde</label>
+                    <input type="text" id="paciente-plano-saude" placeholder="Ex: Unimed, Bradesco Saúde, Particular..." class="form-input">
                 </div>
 
                 <div class="pt-2 flex justify-end">
@@ -123,9 +129,23 @@
                     </div>
                 </div>
 
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Especialidade</label>
+                        <input type="text" id="usuario-especialidade" placeholder="Ex: Fisioterapia" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">Número de Conselho</label>
+                        <input type="text" id="usuario-numero-conselho" placeholder="Ex: CRP 06/12345" class="form-input">
+                    </div>
+                </div>
+
                 <div>
-                    <label class="form-label">Especialidade</label>
-                    <input type="text" id="usuario-especialidade" placeholder="Ex: Fisioterapia" class="form-input">
+                    <label class="form-label">Equipe</label>
+                    <select id="usuario-equipe" class="form-input">
+                        <option value="">Sem equipe / não se aplica</option>
+                    </select>
+                    <p class="text-[11px] mt-1" style="color:var(--warn)">O vínculo com a equipe ainda não é gravado automaticamente pela API — confira depois no Airtable.</p>
                 </div>
 
                 <div class="pt-2 flex justify-end">

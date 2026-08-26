@@ -1,5 +1,6 @@
 let patients = [];
 let selectedPatientId = null;
+let patientSearchAutocomplete = null;
 let activeFilter = 'all';
 let isRecordingSim = false;
 let isLoading = false;
@@ -37,6 +38,12 @@ async function loadSchedule(date = getSelectedDate(), options = {}) {
         patients.forEach((patient) => {
             patient.history = ApiService.buildPatientHistory(patients, patient.patientKey);
         });
+
+        if (patientSearchAutocomplete) {
+            patientSearchAutocomplete.setOptions(
+                patients.map((p) => ({ id: p.id, label: p.name, sublabel: p.time }))
+            );
+        }
 
         updateDashboardStats();
         renderPatientList(document.getElementById('patient-search').value);
@@ -505,6 +512,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('patient-search').addEventListener('input', (e) => {
         renderPatientList(e.target.value);
+    });
+
+    // Autocomplete com sugestão por cima do filtro ao vivo já existente
+    // (os dois convivem — o filtro continua atualizando a lista a cada
+    // tecla; escolher uma sugestão aqui abre o paciente direto).
+    patientSearchAutocomplete = attachAutocomplete(document.getElementById('patient-search'), {
+        options: [],
+        onSelect: (opt) => selectPatient(opt.id),
     });
 
     document.getElementById('selected-date').addEventListener('change', () => {

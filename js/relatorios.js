@@ -156,6 +156,28 @@ clearBtn.addEventListener('click', () => {
     loadRelatorios();
 });
 
+// Sugestão em dropdown por cima do campo de busca — convive com o filtro
+// normal do formulário (que só roda ao clicar "Buscar"); escolher uma
+// sugestão já dispara a busca na hora.
+let patientNameAutocomplete = null;
+
+async function loadPacienteSuggestions() {
+    try {
+        const pacientes = await PacientesApi.fetchPacientes();
+        patientNameAutocomplete.setOptions(
+            pacientes.map((p) => ({ id: p.id, label: p.nome, sublabel: p.planoSaude || '' }))
+        );
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+    patientNameAutocomplete = attachAutocomplete(nameInput, {
+        options: [],
+        onSelect: () => loadRelatorios(getFiltersFromForm()),
+    });
+    loadPacienteSuggestions();
+
     loadRelatorios();
 });

@@ -27,78 +27,265 @@
 
     <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-4 sm:py-6 space-y-6">
 
-        <div id="loading-state" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
-            <div class="flex flex-col items-center gap-3 text-slate-500">
-                <i data-lucide="loader-2" class="w-6 h-6 text-clinical-600 animate-spin"></i>
-                <p class="text-sm font-medium text-slate-700">Carregando indicadores...</p>
+        <div class="segmented max-w-lg">
+            <button id="tab-btn-atendimentos" onclick="switchCoordenacaoTab('atendimentos')" class="segmented-btn active">Atendimentos</button>
+            <button id="tab-btn-relatorios" onclick="switchCoordenacaoTab('relatorios')" class="segmented-btn">Relatórios</button>
+            <button id="tab-btn-indicadores" onclick="switchCoordenacaoTab('indicadores')" class="segmented-btn">Indicadores</button>
+        </div>
+
+        <div id="coordenacao-loading" class="card p-10 text-center">
+            <div class="flex flex-col items-center gap-3" style="color:var(--ink-soft)">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin" style="color:var(--brand-600)"></i>
+                <p class="text-sm font-medium">Carregando atendimentos e relatórios...</p>
             </div>
         </div>
 
-        <div id="dashboard-content" class="hidden space-y-6">
-            <section class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                <div class="col-span-2 lg:col-span-1 bg-clinical-600 text-white p-4 rounded-2xl shadow-sm flex flex-col justify-between">
-                    <p class="text-xs font-medium text-clinical-100">Taxa de Assiduidade</p>
-                    <p id="metric-assiduidade" class="text-3xl font-bold mt-1">0%</p>
-                    <p class="text-[11px] text-clinical-100 mt-0.5">Realizados / Agendados</p>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-slate-500">Agendados</p>
-                        <i data-lucide="calendar-days" class="w-4 h-4 text-blue-500"></i>
-                    </div>
-                    <p id="metric-total" class="text-2xl font-bold text-slate-900 mt-1">0</p>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-slate-500">Realizados</p>
-                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
-                    </div>
-                    <p id="metric-realizados" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-slate-500">Faltas s/ Aviso</p>
-                        <i data-lucide="user-x" class="w-4 h-4 text-rose-600"></i>
-                    </div>
-                    <p id="metric-faltas" class="text-2xl font-bold text-rose-600 mt-1">0</p>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-slate-500">Desmarcados</p>
-                        <i data-lucide="calendar-x" class="w-4 h-4 text-amber-600"></i>
-                    </div>
-                    <p id="metric-desmarcados" class="text-2xl font-bold text-amber-600 mt-1">0</p>
-                </div>
-            </section>
-
-            <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                    <h2 class="font-bold text-slate-900 text-base flex items-center gap-2">
-                        <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i>
-                        Alertas de Absenteísmo
-                    </h2>
-                    <span id="alerts-count-badge" class="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-semibold">
-                        0 alerta(s)
-                    </span>
-                </div>
-
-                <div id="alerts-container" class="divide-y divide-slate-100"></div>
-
-                <div id="alerts-empty" class="hidden p-8 text-center text-slate-400 text-xs">
-                    Nenhum paciente com faltas consecutivas no momento.
-                </div>
-            </section>
+        <div id="coordenacao-error" class="hidden card p-8 text-center">
+            <p id="coordenacao-error-message" class="text-sm font-medium" style="color:var(--ink-soft)">Não foi possível carregar os dados.</p>
         </div>
 
-        <div id="error-state" class="hidden card p-8 text-center">
-            <p id="error-message" class="text-slate-500 text-sm font-medium">Não foi possível carregar os indicadores.</p>
+        <div id="coordenacao-content" class="hidden space-y-6">
+
+            <!-- Aba: Atendimentos realizados -->
+            <div id="tab-panel-atendimentos">
+                <div id="atendimentos-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+
+                <div id="atendimentos-empty" class="hidden card p-10 text-center">
+                    <div class="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style="background:var(--surface-alt); color:var(--ink-faint)">
+                        <i data-lucide="calendar-check" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-sm font-semibold" style="color:var(--ink)">Nenhum atendimento realizado ainda</h3>
+                    <p class="text-xs mt-1" style="color:var(--ink-soft)">Assim que terapeutas concluírem sessões, elas aparecem aqui.</p>
+                </div>
+            </div>
+
+            <!-- Aba: Relatórios -->
+            <div id="tab-panel-relatorios" class="hidden space-y-4">
+                <section class="card p-5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider mb-4" style="color:var(--ink-faint)">Filtros</h2>
+                    <form id="filterFormRelatorios" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                        <div>
+                            <label for="filter-relatorio-paciente" class="form-label">Paciente</label>
+                            <input type="text" id="filter-relatorio-paciente" placeholder="Nome do paciente..." class="form-input">
+                        </div>
+                        <div>
+                            <label for="filter-relatorio-terapeuta" class="form-label">Terapeuta</label>
+                            <select id="filter-relatorio-terapeuta" class="form-input">
+                                <option value="">Todos os terapeutas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-relatorio-plano" class="form-label">Plano</label>
+                            <select id="filter-relatorio-plano" class="form-input">
+                                <option value="">Todos os planos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-relatorio-data-inicio" class="form-label">De</label>
+                            <input type="date" id="filter-relatorio-data-inicio" class="form-input">
+                        </div>
+                        <div>
+                            <label for="filter-relatorio-data-fim" class="form-label">Até</label>
+                            <input type="date" id="filter-relatorio-data-fim" class="form-input">
+                        </div>
+                        <div class="lg:col-span-5 flex gap-2 justify-end">
+                            <button type="button" onclick="clearRelatorioFilters()" class="btn-secondary">Limpar filtros</button>
+                            <button type="submit" class="btn-primary">
+                                <i data-lucide="filter" class="w-4 h-4"></i>
+                                Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                <div class="flex items-center justify-between px-1 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-sm font-bold" style="color:var(--ink)">Relatórios</h2>
+                        <span id="relatorios-count-badge" class="badge badge--neutral">0 relatório(s)</span>
+                    </div>
+                    <button onclick="openNovoRelatorioModal()" class="btn-primary">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Novo Relatório Avulso
+                    </button>
+                </div>
+
+                <div id="relatorios-container" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+
+                <div id="relatorios-empty" class="hidden card p-10 text-center">
+                    <div class="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style="background:var(--surface-alt); color:var(--ink-faint)">
+                        <i data-lucide="search-x" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-sm font-semibold" style="color:var(--ink)">Nenhum relatório encontrado</h3>
+                    <p class="text-xs mt-1" style="color:var(--ink-soft)">Ajuste os filtros ou limpe-os para ver todos.</p>
+                </div>
+            </div>
+
+            <!-- Aba: Indicadores (dashboard antigo — segue bloqueado no endpoint /coordenacao/metricas) -->
+            <div id="tab-panel-indicadores" class="hidden space-y-6">
+                <div id="loading-state" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
+                    <div class="flex flex-col items-center gap-3 text-slate-500">
+                        <i data-lucide="loader-2" class="w-6 h-6 text-clinical-600 animate-spin"></i>
+                        <p class="text-sm font-medium text-slate-700">Carregando indicadores...</p>
+                    </div>
+                </div>
+
+                <div id="dashboard-content" class="hidden space-y-6">
+                    <section class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                        <div class="col-span-2 lg:col-span-1 bg-clinical-600 text-white p-4 rounded-2xl shadow-sm flex flex-col justify-between">
+                            <p class="text-xs font-medium text-clinical-100">Taxa de Assiduidade</p>
+                            <p id="metric-assiduidade" class="text-3xl font-bold mt-1">0%</p>
+                            <p class="text-[11px] text-clinical-100 mt-0.5">Realizados / Agendados</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-medium text-slate-500">Agendados</p>
+                                <i data-lucide="calendar-days" class="w-4 h-4 text-blue-500"></i>
+                            </div>
+                            <p id="metric-total" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-medium text-slate-500">Realizados</p>
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+                            </div>
+                            <p id="metric-realizados" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-medium text-slate-500">Faltas s/ Aviso</p>
+                                <i data-lucide="user-x" class="w-4 h-4 text-rose-600"></i>
+                            </div>
+                            <p id="metric-faltas" class="text-2xl font-bold text-rose-600 mt-1">0</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-medium text-slate-500">Desmarcados</p>
+                                <i data-lucide="calendar-x" class="w-4 h-4 text-amber-600"></i>
+                            </div>
+                            <p id="metric-desmarcados" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+                        </div>
+                    </section>
+
+                    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                            <h2 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                                <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i>
+                                Alertas de Absenteísmo
+                            </h2>
+                            <span id="alerts-count-badge" class="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-semibold">
+                                0 alerta(s)
+                            </span>
+                        </div>
+
+                        <div id="alerts-container" class="divide-y divide-slate-100"></div>
+
+                        <div id="alerts-empty" class="hidden p-8 text-center text-slate-400 text-xs">
+                            Nenhum paciente com faltas consecutivas no momento.
+                        </div>
+                    </section>
+                </div>
+
+                <div id="error-state" class="hidden card p-8 text-center">
+                    <p id="error-message" class="text-slate-500 text-sm font-medium">Não foi possível carregar os indicadores.</p>
+                </div>
+            </div>
         </div>
     </main>
     </div>
+    </div>
+
+    <div id="modal-editar-relatorio" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between" style="background:var(--surface-alt)">
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2" style="color:var(--ink)">
+                        <i data-lucide="pencil" class="w-4 h-4" style="color:var(--brand-600)"></i>
+                        Editar relatório
+                    </h3>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">
+                        <span id="modal-editar-paciente">—</span> · <span id="modal-editar-contexto">—</span>
+                    </p>
+                </div>
+                <button onclick="closeEditRelatorioModal()" class="btn-icon" title="Fechar">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleEditRelatorioSubmit(event)" class="p-5 space-y-4">
+                <div>
+                    <label for="modal-editar-data" class="form-label">Data</label>
+                    <input type="date" id="modal-editar-data" required class="form-input">
+                </div>
+
+                <div>
+                    <label for="modal-editar-conteudo" class="form-label">Conteúdo do relatório</label>
+                    <textarea id="modal-editar-conteudo" rows="8" required class="form-input text-sm leading-relaxed"></textarea>
+                </div>
+
+                <div class="flex items-start gap-2 text-xs p-3 rounded-xl" style="background:var(--warn-soft); color:var(--warn-ink)">
+                    <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                    <span>Esta edição fica salva só nesta sessão do navegador — ainda não é enviada para a base.</span>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-3 border-t" style="border-color:var(--border)">
+                    <button type="button" onclick="closeEditRelatorioModal()" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-primary">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Salvar nesta sessão
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-novo-relatorio" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between" style="background:var(--surface-alt)">
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2" style="color:var(--ink)">
+                        <i data-lucide="file-plus" class="w-4 h-4" style="color:var(--brand-600)"></i>
+                        Novo relatório avulso
+                    </h3>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Sem necessidade de um atendimento vinculado.</p>
+                </div>
+                <button onclick="closeNovoRelatorioModal()" class="btn-icon" title="Fechar">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleNovoRelatorioSubmit(event)" class="p-5 space-y-4">
+                <div>
+                    <label for="novo-relatorio-paciente" class="form-label">Paciente <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="novo-relatorio-paciente" required placeholder="Carregando pacientes..." disabled class="form-input">
+                </div>
+
+                <div>
+                    <label for="novo-relatorio-data" class="form-label">Data</label>
+                    <input type="date" id="novo-relatorio-data" required class="form-input">
+                </div>
+
+                <div>
+                    <label for="novo-relatorio-conteudo" class="form-label">Conteúdo <span style="color:var(--danger)">*</span></label>
+                    <textarea id="novo-relatorio-conteudo" rows="7" required placeholder="Ex: contato com a família, orientação passada à escola, observação fora de sessão..." class="form-input text-sm leading-relaxed"></textarea>
+                </div>
+
+                <p class="text-xs" style="color:var(--ink-faint)">
+                    Autor: <span id="novo-relatorio-autor" style="color:var(--ink-soft); font-weight:600">—</span> (você, a partir da sua sessão)
+                </p>
+
+                <div class="pt-2 flex items-center justify-end gap-3 border-t" style="border-color:var(--border)">
+                    <button type="button" onclick="closeNovoRelatorioModal()" class="btn-secondary">Cancelar</button>
+                    <button type="submit" id="novo-relatorio-submit-btn" class="btn-primary">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Criar relatório
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
@@ -109,7 +296,7 @@
         Sidebar.mount('sidebar-root');
         Topbar.mount('topbar-root', {
             title: 'Coordenação',
-            subtitle: 'Indicadores globais da clínica.',
+            subtitle: 'Atendimentos, relatórios e indicadores da clínica.',
             actionsHtml: `
                 <button id="refresh-btn" class="btn-secondary">
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
@@ -119,6 +306,9 @@
         });
     </script>
 
+    <script src="js/autocomplete.js"></script>
+    <script src="js/pacientes-api.js"></script>
+    <script src="js/cadastro-api.js"></script>
     <script src="js/coordenacao-api.js"></script>
     <script src="js/coordenacao.js"></script>
 </body>

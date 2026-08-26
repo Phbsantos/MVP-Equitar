@@ -51,9 +51,10 @@ const CONFIG = {
         // isso ser implementado.
         USUARIO_LOGIN: '/usuario/login',
         // Agenda filtrada por equipe do supervisor: sem endpoint dedicado —
-        // reconstruído no cliente (ver SupervisorApi.fetchEquipeMembros/
-        // fetchEquipeDia) a partir de /listar/equipes + /listar/atendimentos.
-        // Chave mantida só de referência, não é mais usada no código.
+        // reconstruído no cliente (ver SupervisorApi.fetchEquipeMembroIds/
+        // fetchEquipeDia) a partir de /listar/equipes + /listar/atendimentos,
+        // filtrando por ID de terapeuta, não por nome. Chave mantida só de
+        // referência, não é mais usada no código.
         SUPERVISOR_EQUIPE_DIA: '/supervisor/equipe-dia',
         // Métricas de coordenação: seguem sem endpoint (já era TODO antes).
         COORDENACAO_METRICAS: '/coordenacao/metricas',

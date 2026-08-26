@@ -223,6 +223,12 @@
     </div>
     </div>
 
+    <button onclick="RelatorioAvulsoModal.open()" class="fixed bottom-6 left-6 md:left-[calc(17rem+1.5rem)] z-40 btn-fab" title="Novo Relatório Avulso">
+        <i data-lucide="file-plus" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Novo Relatório Avulso</span>
+    </button>
+    <div id="relatorio-avulso-root"></div>
+
     <div id="history-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
             <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
@@ -253,8 +259,13 @@
     <script src="js/components/sidebar.js"></script>
     <script src="js/components/topbar.js"></script>
     <script src="js/components/ui.js"></script>
+    <script src="js/autocomplete.js"></script>
+    <script src="js/pacientes-api.js"></script>
+    <script src="js/cadastro-api.js"></script>
+    <script src="js/components/relatorio-avulso.js"></script>
     <script>
         Sidebar.mount('sidebar-root');
+        RelatorioAvulsoModal.mount('relatorio-avulso-root');
         Topbar.mount('topbar-root', {
             title: 'Minha Agenda',
             subtitle: '<span id="user-chip-especialidade">—</span>',

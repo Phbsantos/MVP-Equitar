@@ -118,7 +118,6 @@ function updateKPIs() {
     ).length;
 
     document.getElementById('kpi-total').innerText = total;
-    document.getElementById('badge-total-equipe').innerText = total;
     document.getElementById('kpi-realizados').innerText = realizados;
     document.getElementById('kpi-pendentes').innerText = pendentes;
     document.getElementById('kpi-faltas').innerText = faltas;
@@ -155,12 +154,37 @@ async function loadEquipeDia() {
     try {
         appointmentsData = await SupervisorApi.fetchEquipeDia(date);
         filterAppointments();
+        updateSearchSuggestions();
     } catch (error) {
         console.error(error);
         appointmentsData = [];
         renderAppointments([]);
         showToast(error.message || 'Erro ao carregar agenda da equipe.', 'error');
     }
+}
+
+let equipeSearchAutocomplete = null;
+
+// Sugestões vêm de quem já está na agenda carregada da equipe — paciente
+// e terapeuta juntos, já que a busca aqui filtra os dois campos.
+function updateSearchSuggestions() {
+    if (!equipeSearchAutocomplete) return;
+
+    const vistos = new Set();
+    const opcoes = [];
+
+    appointmentsData.forEach((item) => {
+        if (item.paciente && !vistos.has(`p:${item.paciente}`)) {
+            vistos.add(`p:${item.paciente}`);
+            opcoes.push({ id: item.paciente, label: item.paciente, sublabel: 'Paciente' });
+        }
+        if (item.terapeuta && !vistos.has(`t:${item.terapeuta}`)) {
+            vistos.add(`t:${item.terapeuta}`);
+            opcoes.push({ id: item.terapeuta, label: item.terapeuta, sublabel: 'Terapeuta' });
+        }
+    });
+
+    equipeSearchAutocomplete.setOptions(opcoes);
 }
 
 let terapeutasCarregados = false;
@@ -341,6 +365,13 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modal-data').value = today;
 
     document.getElementById('filter-date').addEventListener('change', loadEquipeDia);
+
+    // Convive com o onkeyup="filterAppointments()" já no HTML — a busca ao
+    // vivo continua igual, isso só soma a sugestão em dropdown.
+    equipeSearchAutocomplete = attachAutocomplete(document.getElementById('search-input'), {
+        options: [],
+        onSelect: () => filterAppointments(),
+    });
 
     loadEquipeDia();
     initTerapeutaAutocomplete();
