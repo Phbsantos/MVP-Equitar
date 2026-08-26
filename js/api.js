@@ -4,6 +4,29 @@ const ApiService = {
         return value || '';
     },
 
+    // 2026-08-26: na base nova (phbsantos1), campos de link tipo
+    // Paciente_Nome / Terapeuta_Nome / Supervisor_Nome passaram a devolver
+    // o record ID do Airtable (ex: "recQ6JtKNHEzyBjUG"), não mais o nome.
+    // O nome legível vem num campo de lookup separado, com o nome que o
+    // Airtable gera automaticamente ao criar o lookup — tipo
+    // "Nome_Completo (from Paciente_Nome)". Esse helper tenta o lookup
+    // primeiro e só cai pro campo de link puro se o valor não parecer um
+    // record ID (pra continuar funcionando caso algum workflow antigo
+    // ainda devolva o nome direto em Paciente_Nome).
+    looksLikeRecordId(value) {
+        return typeof value === 'string' && /^rec[a-zA-Z0-9]{14,}$/.test(value);
+    },
+
+    resolveLinkedName(fields, linkField, lookupField) {
+        const lookupValue = this.firstOrValue(fields[lookupField]);
+        if (lookupValue) return lookupValue;
+
+        const linkValue = this.firstOrValue(fields[linkField]);
+        if (linkValue && !this.looksLikeRecordId(linkValue)) return linkValue;
+
+        return '';
+    },
+
     mapApiStatusToInternal(apiStatus) {
         const map = {
             'Agendado': 'pending',
@@ -53,12 +76,17 @@ const ApiService = {
 
     transformAtendimento(record) {
         const fields = record.fields || {};
-        const name = this.firstOrValue(fields.Paciente_Nome) || fields.Nome || `Paciente #${record.id.slice(-6)}`;
+        const name =
+            this.resolveLinkedName(fields, 'Paciente_Nome', 'Nome_Completo (from Paciente_Nome)') ||
+            fields.Nome ||
+            `Paciente #${record.id.slice(-6)}`;
+        const therapistName = this.resolveLinkedName(fields, 'Terapeuta_Nome', 'Nome (from Terapeuta_Nome)');
 
         return {
             id: record.id,
             patientKey: name.toLowerCase().trim(),
             name,
+            therapistName,
             age: fields.Idade_Paciente || '',
             time: this.formatTime(fields.Data_Hora),
             specialty: fields.Especialidade || 'Terapia Ocupacional',
@@ -88,15 +116,13 @@ const ApiService = {
 
     async fetchAtendimentosDia(date) {
         const session = AuthApi.getSession();
-        const params = new URLSearchParams({
-            terapeuta: (session && session.nome) || CONFIG.TERAPEUTA,
-        });
+        const terapeutaNome = ((session && session.nome) || CONFIG.TERAPEUTA).trim().toLowerCase();
 
-        if (date) {
-            params.set('data', date);
-        }
-
-        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.ATENDIMENTOS_DIA}?${params.toString()}`;
+        // 2026-08-26: /listar/atendimentos (base nova) ignora qualquer
+        // query string — confirmado testando ?terapeuta= e ?paciente_nome=,
+        // sempre devolve a tabela inteira. Até o n8n filtrar no servidor,
+        // filtramos aqui por terapeuta e data.
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}`;
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -108,11 +134,36 @@ const ApiService = {
 
         return records
             .map((record) => this.transformAtendimento(record))
+            .filter((patient) => {
+                const matchesTerapeuta = patient.therapistName.trim().toLowerCase() === terapeutaNome;
+                const matchesData = !date || (patient.dataHora || '').slice(0, 10) === date;
+                return matchesTerapeuta && matchesData;
+            })
             .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
     },
 
+    // 2026-08-26: confirmado com a Roseane — fechar um atendimento não é
+    // um "update" nele. É criar um Relatorio (Tipo = Evolução) linkado via
+    // atendimento_id em /registrar/relatorio.
+    //
+    // As duas primeiras tentativas de testar isso (na mesma sessão) deram
+    // HTTP 200 com corpo vazio e pareciam confirmar um bug no workflow —
+    // acabou sendo falso alarme: era a codificação UTF-8 do meu próprio
+    // teste em curl (texto acentuado tipo "Evolução" chegando corrompido,
+    // ex: "Sess�o Regular"), não um bug do n8n. Retestado enviando o corpo
+    // por arquivo (bypassando o shell) e funcionou: cria o Relatorio e
+    // resolve corretamente os links Paciente/Autor/Atendimento. O fetch()
+    // do navegador sempre serializa UTF-8 certo via JSON.stringify, então
+    // esse problema nunca teria afetado o app de verdade — só meu teste.
+    //
+    // ATUALIZAÇÃO 2026-08-26: o caminho de conclusão (status "realizado")
+    // foi corrigido no n8n e está confirmado funcionando — testado 2x do
+    // zero (atendimento novo → criar Relatorio com atendimento_id +
+    // status_presenca → Status_Presenca e Evolucao_Prontuario do Atendimento
+    // são atualizados de verdade). Falta/Desmarcado/Cancelado ainda não
+    // foram testados nesse fluxo (fora de escopo por enquanto, a pedido).
     async registerAtendimento(payload) {
-        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.REGISTRAR}`;
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.RELATORIO_REGISTRAR}`;
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -124,38 +175,53 @@ const ApiService = {
             throw new Error(errorText || `Erro ao salvar atendimento (${response.status})`);
         }
 
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-            return response.json();
-        }
+        const rawText = await response.text().catch(() => '');
+        if (!rawText) return { success: true };
 
-        return { success: true };
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            return { success: true };
+        }
     },
 
-    // A API de registro só persiste 4 campos (atendimento_id, status_presenca,
-    // evolucao_prontuario, justificativa_falta). Engajamento e recomendação
-    // pós-sessão não têm campo próprio na tabela, então são anexados ao texto
-    // da evolução para não se perderem.
+    // 2026-08-26: fluxo de conclusão (caso Realizado) testado e
+    // confirmado funcionando — criar o Relatorio com atendimento_id +
+    // status_presenca de fato atualiza Status_Presenca e Evolucao_Prontuario
+    // do Atendimento linkado. O que continua confirmado como NÃO suportado:
+    // Nivel_Engajamento e Recomendacao_Pos_Sessao não são gravados mesmo
+    // enviados soltos no payload (testado) — por isso continuam
+    // concatenados dentro do texto de Conteudo, igual o app antigo fazia.
+    // Falta/Desmarcado/Cancelado ainda não foram testados neste fluxo
+    // (fora de escopo por enquanto).
     buildRegisterPayload(patient, formData) {
         const isRealizado = formData.status === 'realizado';
         const isFaltaOuDesmarcado = formData.status === 'falta' || formData.status === 'desmarcado';
+        const session = AuthApi.getSession();
 
-        const notesParts = [];
+        const conteudoParts = [];
         if (isRealizado) {
-            if (formData.notes) notesParts.push(formData.notes);
+            if (formData.notes) conteudoParts.push(formData.notes);
             if (formData.engagement) {
-                notesParts.push(`Engajamento: ${this.engagementLabels[formData.engagement] || formData.engagement}`);
+                conteudoParts.push(`Engajamento: ${this.engagementLabels[formData.engagement] || formData.engagement}`);
             }
-            if (formData.nextSteps) {
-                notesParts.push(`Recomendação pós-sessão: ${formData.nextSteps}`);
-            }
+            if (formData.nextSteps) conteudoParts.push(`Recomendação pós-sessão: ${formData.nextSteps}`);
+        } else if (isFaltaOuDesmarcado) {
+            conteudoParts.push(`Justificativa: ${formData.justification || ''}`);
         }
 
         return {
+            tipo: 'Evolução',
+            paciente_nome: patient.name,
             atendimento_id: patient.id,
+            autor_nome: (session && session.nome) || CONFIG.TERAPEUTA,
+            data: (patient.dataHora || '').slice(0, 10),
+            conteudo: conteudoParts.join('\n\n'),
+            editado_por_nome: null,
+            // Enviados também soltos, caso o workflow venha a usar campos
+            // próprios em vez de só o texto de conteudo (não confirmado).
             status_presenca: this.mapInternalStatusToApi(formData.status),
-            evolucao_prontuario: isRealizado ? notesParts.join('\n\n') : '',
-            justificativa_falta: isFaltaOuDesmarcado ? formData.justification : '',
+            justificativa_falta: isFaltaOuDesmarcado ? formData.justification : null,
         };
     },
 };

@@ -1,0 +1,6 @@
+Recorrencia_ID,Paciente,Terapeuta,Dias_Semana,Horario,Data_Inicio,Data_Fim,Status
+REC001,Enzo Martins,Fernanda Duarte,"Terça, Quinta",14:00,2026-02-03,,Ativa
+REC002,Alice Ferreira,Rafael Nogueira,"Segunda, Quarta, Sexta",09:00,2026-01-13,,Ativa
+REC003,Davi Souza,Bruno Castro,"Terça, Quinta",10:30,2026-03-10,,Ativa
+REC004,Laura Pinto,Juliana Prado,"Segunda, Quarta",16:00,2025-11-04,2026-12-19,Ativa
+REC005,Miguel Rocha,Fernanda Duarte,Sexta,11:00,2025-06-02,2026-05-15,Encerrada

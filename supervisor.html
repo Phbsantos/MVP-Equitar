@@ -3,150 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel do Supervisor Clínico</title>
+    <title>Painel do Supervisor · Equitar</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome mantido só para os ícones já usados no conteúdo desta
+         página (cards, modais). O cromo compartilhado (sidebar/topbar) usa
+         Lucide, como as demais páginas. -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script src="js/config.js"></script>
     <script src="js/auth-api.js"></script>
     <script src="js/auth-guard.js"></script>
+    <script src="js/role-guard.js"></script>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        clinical: {
-                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
-                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
-                            800: '#0d6055', 900: '#0a4a41',
-                        },
-                        blue: {
-                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
-                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
-                            800: '#0d6055', 900: '#0a4a41',
-                        },
-                        indigo: {
-                            50: '#e6f6f3', 100: '#c2e6df', 200: '#99d6ce', 300: '#6cc3b6',
-                            400: '#3fb09e', 500: '#1caf9a', 600: '#159583', 700: '#117a6c',
-                            800: '#0d6055', 900: '#0a4a41',
-                        },
-                        slate: {
-                            50: '#faf6f0', 100: '#f2ede4', 200: '#dfe0ed', 300: '#c5c7da',
-                            400: '#9b9eb1', 500: '#7d8095', 600: '#60657e', 700: '#454a63',
-                            800: '#2c3049', 900: '#1b2653',
-                        },
-                    }
-                }
-            }
-        }
-    </script>
-    <style type="text/tailwindcss">
-        @layer components {
-            .btn-primary {
-                @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-clinical-600 text-white font-semibold text-sm shadow-md shadow-clinical-200 hover:bg-clinical-700 active:bg-clinical-800 transition disabled:opacity-60 disabled:cursor-not-allowed;
-            }
-            .btn-secondary {
-                @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition;
-            }
-            .form-input {
-                @apply w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clinical-500 focus:bg-white transition;
-            }
-            .form-label {
-                @apply block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1;
-            }
-            .card {
-                @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
-            }
-        }
-    </style>
-    <style>
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .modal-backdrop { backdrop-filter: blur(4px); }
-    </style>
+    <script src="js/components/theme.js"></script>
+    <link rel="stylesheet" href="css/theme.css">
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
 
-    <header class="bg-blue-900 text-white shadow-md sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-xl bg-blue-700/60 border border-blue-500/30 flex items-center justify-center text-blue-200 font-bold text-xl shadow-inner">
-                        <i class="fa-solid me-0 fa-user-doctor"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-lg leading-tight tracking-wide text-white">Painel do Supervisor</h1>
-                        <p class="text-xs text-blue-200/80 font-medium">Gestão Multiprofissional e Supervisão</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center space-x-3 sm:space-x-5">
-                    <div class="hidden md:flex items-center space-x-3 pr-3 border-r border-blue-800">
-                        <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-sm border-2 border-indigo-300" id="user-chip-initials">
-                            --
-                        </div>
-                        <div class="text-right">
-                            <span class="block text-sm font-semibold text-slate-100" id="user-chip-name">—</span>
-                            <span class="inline-block text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-200 border border-indigo-400/20" id="user-chip-role">
-                                —
-                            </span>
-                        </div>
-                    </div>
-
-                    <button onclick="AuthApi.logout()" class="p-2 text-blue-200 hover:text-white hover:bg-white/10 rounded-lg transition" title="Sair">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <button onclick="openAgendarModal()" class="fixed bottom-6 left-6 z-40 inline-flex items-center gap-2 pl-4 pr-5 py-3.5 rounded-full bg-clinical-600 text-white font-semibold text-sm shadow-lg shadow-clinical-900/30 hover:bg-clinical-700 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 active:translate-y-0 transition-all" title="Agendar Sessão Avulsa">
+    <button onclick="openAgendarModal()" class="fixed bottom-6 left-6 md:left-[calc(17rem+1.5rem)] z-40 btn-fab" title="Agendar Sessão Avulsa">
         <i class="fa-solid fa-plus text-sm"></i>
         <span class="hidden sm:inline">Agendar Sessão Avulsa</span>
     </button>
 
-    <nav class="bg-white border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2 overflow-x-auto">
-            <a href="index.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Minha Agenda</a>
-            <a href="relatorios.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Relatórios</a>
-            <a href="supervisor.html" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">Supervisor</a>
-            <a href="coordenacao.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Coordenação</a>
-            <a href="cadastros.html" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap">Cadastros</a>
-        </div>
-    </nav>
+    <div class="app-shell">
+    <aside id="sidebar-root"></aside>
+    <div class="app-main">
+    <header id="topbar-root"></header>
 
-    <div class="bg-white border-b border-slate-200 sticky top-16 z-20 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav class="flex space-x-8" aria-label="Tabs">
-                <button id="tab-btn-equipe" onclick="switchTab('equipe')" class="border-blue-600 text-blue-700 font-semibold py-4 px-1 inline-flex items-center space-x-2 border-b-2 text-sm transition-all focus:outline-none">
-                    <i class="fa-solid fa-users text-base"></i>
-                    <span>Agenda da Equipe</span>
-                    <span id="badge-total-equipe" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full ml-1.5">0</span>
-                </button>
-
-                <button id="tab-btn-meus" onclick="switchTab('meus')" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium py-4 px-1 inline-flex items-center space-x-2 border-b-2 text-sm transition-all focus:outline-none">
-                    <i class="fa-solid fa-calendar-check text-base"></i>
-                    <span>Meus Atendimentos</span>
-                    <span id="badge-meus-count" class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 rounded-full ml-1.5">0</span>
-                </button>
-            </nav>
-        </div>
-    </div>
-
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+    <main class="max-w-6xl mx-auto px-4 sm:px-8 py-6 flex-grow w-full">
 
         <div id="content-equipe" class="space-y-6">
-            
+
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                     <div class="flex items-center justify-between">
@@ -259,30 +150,12 @@
             </div>
         </div>
 
-        <div id="content-meus" class="hidden space-y-6">
-            <div class="bg-indigo-900/5 border border-indigo-200/60 rounded-2xl p-4 flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-user-clock"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-base font-bold text-slate-800">Sua Agenda Individual</h2>
-                        <p class="text-xs text-slate-600">Sessões clínicas conduzidas diretamente por você como terapeuta titular.</p>
-                    </div>
-                </div>
-                <span id="meus-count-badge" class="text-xs font-semibold bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">0 Agendamentos Hoje</span>
-            </div>
-
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div id="meus-atendimentos-list" class="divide-y divide-slate-100">
-                </div>
-            </div>
-        </div>
-
     </main>
+    </div>
+    </div>
 
     <div id="modal-agendar" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-slate-900/60 transition-opacity modal-backdrop" onclick="closeAgendarModal()"></div>
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeAgendarModal()"></div>
 
         <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
             <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-100">
@@ -363,7 +236,7 @@
     </div>
 
     <div id="modal-prontuario" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-prontuario-title" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-slate-900/60 transition-opacity modal-backdrop" onclick="closeProntuarioModal()"></div>
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeProntuarioModal()"></div>
 
         <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
             <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-xl border border-slate-100">
@@ -427,6 +300,16 @@
             <span id="toast-message" class="text-xs font-medium">Sessão agendada com sucesso!</span>
         </div>
     </div>
+
+    <script src="js/components/sidebar.js"></script>
+    <script src="js/components/topbar.js"></script>
+    <script>
+        Sidebar.mount('sidebar-root');
+        Topbar.mount('topbar-root', {
+            title: 'Painel do Supervisor',
+            subtitle: 'Gestão multiprofissional e supervisão da equipe.',
+        });
+    </script>
 
     <script src="js/usuarios-api.js"></script>
     <script src="js/pacientes-api.js"></script>

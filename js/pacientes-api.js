@@ -1,4 +1,9 @@
 const PacientesApi = {
+    firstOrValue(value) {
+        if (Array.isArray(value)) return value[0] || '';
+        return value || '';
+    },
+
     normalizeRecordsResponse(data) {
         if (data == null) return [];
         if (Array.isArray(data)) return data.filter((item) => item && (item.fields || item.id));
@@ -12,8 +17,12 @@ const PacientesApi = {
         return {
             id: record.id,
             nome: fields.Nome_Completo || '',
+            dataNascimento: fields.Data_Nascimento || '',
             responsavelNome: fields.Responsavel_Nome || '',
             telefoneWhatsapp: fields.Telefone_WhatsApp ? String(fields.Telefone_WhatsApp) : '',
+            planoSaude: fields.Plano_Saude || '',
+            // Lookup gerado pelo Airtable a partir do link Terapeuta_Responsavel.
+            terapeutaResponsavelNome: this.firstOrValue(fields['Nome (from Terapeuta_Responsavel)']) || '',
             status: fields.Status || '',
         };
     },

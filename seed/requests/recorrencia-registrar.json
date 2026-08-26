@@ -1,0 +1,56 @@
+{
+  "method": "POST",
+  "endpoint": "/recorrencia/registrar",
+  "requests": [
+    {
+      "codigo": "REC001",
+      "paciente_nome": "Enzo Martins",
+      "terapeuta_nome": "Fernanda Duarte",
+      "dias_semana": ["Terça", "Quinta"],
+      "horario": "14:00",
+      "data_inicio": "2026-02-03",
+      "data_fim": null,
+      "status": "Ativa"
+    },
+    {
+      "codigo": "REC002",
+      "paciente_nome": "Alice Ferreira",
+      "terapeuta_nome": "Rafael Nogueira",
+      "dias_semana": ["Segunda", "Quarta", "Sexta"],
+      "horario": "09:00",
+      "data_inicio": "2026-01-13",
+      "data_fim": null,
+      "status": "Ativa"
+    },
+    {
+      "codigo": "REC003",
+      "paciente_nome": "Davi Souza",
+      "terapeuta_nome": "Bruno Castro",
+      "dias_semana": ["Terça", "Quinta"],
+      "horario": "10:30",
+      "data_inicio": "2026-03-10",
+      "data_fim": null,
+      "status": "Ativa"
+    },
+    {
+      "codigo": "REC004",
+      "paciente_nome": "Laura Pinto",
+      "terapeuta_nome": "Juliana Prado",
+      "dias_semana": ["Segunda", "Quarta"],
+      "horario": "16:00",
+      "data_inicio": "2025-11-04",
+      "data_fim": "2026-12-19",
+      "status": "Ativa"
+    },
+    {
+      "codigo": "REC005",
+      "paciente_nome": "Miguel Rocha",
+      "terapeuta_nome": "Fernanda Duarte",
+      "dias_semana": ["Sexta"],
+      "horario": "11:00",
+      "data_inicio": "2025-06-02",
+      "data_fim": "2026-05-15",
+      "status": "Encerrada"
+    }
+  ]
+}

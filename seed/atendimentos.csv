@@ -1,0 +1,11 @@
+Atendimento_ID,Paciente_Nome,Terapeuta_Nome,Supervisor_Nome,Recorrencia,Data_Hora,Tipo_Atendimento,Status_Presenca,Evolucao_Prontuario,Justificativa_Falta,Nivel_Engajamento,Recomendacao_Pos_Sessao,Sala
+ATD001,Enzo Martins,Fernanda Duarte,,REC001,2026-08-18T14:00:00-03:00,Sessão Regular,Realizado,Enzo demonstrou boa adesão às atividades de coordenação motora. Manteve atenção por 30 minutos.,,adequado,Reforçar exercícios de equilíbrio em casa 2x por semana.,Sala 2
+ATD002,Enzo Martins,Fernanda Duarte,,REC001,2026-08-20T14:00:00-03:00,Sessão Regular,Realizado,Evolução consistente; iniciou novo protocolo de estimulação sensorial.,,excelente,Manter frequência atual.,Sala 2
+ATD003,Enzo Martins,Fernanda Duarte,,REC001,2026-08-25T14:00:00-03:00,Sessão Regular,Agendado,,,,,Sala 2
+ATD004,Alice Ferreira,Rafael Nogueira,,REC002,2026-08-19T09:00:00-03:00,Sessão Regular,Falta sem Aviso,,Família não avisou; contato realizado por telefone após a sessão.,,,Sala 1
+ATD005,Alice Ferreira,Rafael Nogueira,,REC002,2026-08-21T09:00:00-03:00,Sessão Regular,Realizado,Trabalhou nomeação de objetos; avanço leve em relação à semana anterior.,,parcial,Repetir atividade de nomeação com apoio visual.,Sala 1
+ATD006,Davi Souza,Bruno Castro,,REC003,2026-08-20T10:30:00-03:00,Sessão Regular,Desmarcado com Aviso,,Responsável avisou por WhatsApp que Davi está com febre.,,,Sala 3
+ATD007,Laura Pinto,Juliana Prado,,REC004,2026-08-17T16:00:00-03:00,Sessão Regular,Realizado,Sessão focada em articulação de fonemas /r/ e /l/. Boa colaboração.,,excelente,Avançar para frases completas na próxima sessão.,Sala 4
+ATD008,Sofia Lima,Camila Alves,Camila Alves,,2026-08-22T11:00:00-03:00,Avaliação Inicial,Realizado,Avaliação inicial realizada. Paciente apresenta atraso leve de linguagem.,,adequado,Encaminhar para terapeuta de fonoaudiologia da Equipe Manhã.,Sala 1
+ATD009,Miguel Rocha,Fernanda Duarte,,REC005,2026-05-08T11:00:00-03:00,Sessão Regular,Realizado,Última sessão antes da alta. Paciente atingiu todos os objetivos do plano terapêutico.,,excelente,Alta concedida; reavaliação em 6 meses.,Sala 2
+ATD010,Enzo Martins,Rafael Nogueira,Camila Alves,,2026-08-24T15:30:00-03:00,Supervisão Presencial Conjunta,Realizado,Sessão conjunta de observação com supervisão de Camila Alves.,,excelente,,Sala 2

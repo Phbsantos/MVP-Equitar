@@ -1,0 +1,51 @@
+{
+  "method": "POST",
+  "endpoint": "/relatorio/registrar",
+  "requests": [
+    {
+      "tipo": "Evolução",
+      "paciente_nome": "Enzo Martins",
+      "atendimento_id": "<id real do Airtable retornado ao criar ATD001>",
+      "autor_nome": "Fernanda Duarte",
+      "data": "2026-08-18",
+      "conteudo": "Enzo demonstrou boa adesão às atividades de coordenação motora. Manteve atenção por 30 minutos.",
+      "editado_por_nome": null
+    },
+    {
+      "tipo": "Evolução",
+      "paciente_nome": "Alice Ferreira",
+      "atendimento_id": "<id real do Airtable retornado ao criar ATD005>",
+      "autor_nome": "Rafael Nogueira",
+      "data": "2026-08-21",
+      "conteudo": "Trabalhou nomeação de objetos; avanço leve em relação à semana anterior.",
+      "editado_por_nome": null
+    },
+    {
+      "tipo": "Evolução",
+      "paciente_nome": "Laura Pinto",
+      "atendimento_id": "<id real do Airtable retornado ao criar ATD007>",
+      "autor_nome": "Juliana Prado",
+      "data": "2026-08-17",
+      "conteudo": "Sessão focada em articulação de fonemas /r/ e /l/. Boa colaboração.",
+      "editado_por_nome": null
+    },
+    {
+      "tipo": "Avulso",
+      "paciente_nome": "Davi Souza",
+      "atendimento_id": null,
+      "autor_nome": "Bruno Castro",
+      "data": "2026-08-20",
+      "conteudo": "Contato com a família após a falta: Davi segue em tratamento de uma virose, retorno previsto para a próxima semana. Orientado a manter hidratação e repouso.",
+      "editado_por_nome": null
+    },
+    {
+      "tipo": "Avulso",
+      "paciente_nome": "Miguel Rocha",
+      "atendimento_id": null,
+      "autor_nome": "Marcos Teixeira",
+      "data": "2026-05-20",
+      "conteudo": "Relatório de alta consolidado para encaminhamento à família e à escola, resumindo os 14 meses de acompanhamento.",
+      "editado_por_nome": "Marcos Teixeira"
+    }
+  ]
+}

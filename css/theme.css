@@ -1,0 +1,479 @@
+/*
+ * Tema compartilhado — Equitar
+ * ----------------------------
+ * Carregado por TODAS as páginas via <link rel="stylesheet" href="css/theme.css">.
+ * Tailwind (CDN) continua cuidando de layout/spacing/responsividade nas
+ * classes utilitárias já espalhadas pelo HTML; este arquivo é a fonte
+ * única dos tokens visuais (cor, raio, sombra, tipografia) e dos
+ * componentes reaproveitados entre páginas (botões, cards, sidebar,
+ * topbar, badges) — antes duplicados em `<style>` inline em cada .html.
+ *
+ * Referência visual: dashboard "Tasko" (verde floresta, fundo creme,
+ * cards bem arredondados, botões em pílula, sidebar fixa à esquerda).
+ */
+
+:root {
+  /* Marca — verde floresta */
+  --brand-50: #eaf3ec;
+  --brand-100: #cfe6d5;
+  --brand-200: #a3d0ae;
+  --brand-300: #74b686;
+  --brand-400: #4c9c65;
+  --brand-500: #2f8049;
+  --brand-600: #1f6b3b;
+  --brand-700: #17532e;
+  --brand-800: #113d23;
+  --brand-900: #0b2a18;
+
+  /* Superfícies neutras (fundo creme quente) */
+  --bg: #f5f4ee;
+  --surface: #ffffff;
+  --surface-alt: #faf9f3;
+  --border: #e7e4d9;
+  --border-soft: #efede3;
+
+  /* Texto */
+  --ink: #1a1d19;
+  --ink-soft: #62685f;
+  --ink-faint: #93968c;
+
+  /* Cartões de contraste escuro (estilo "Download App"/"Time Tracker") */
+  --dark: #14170f;
+  --dark-soft: #1e2318;
+  --dark-ink: #f2f1ea;
+
+  /* Estados semânticos de presença — mantêm o significado já usado no app */
+  --ok: #059669;
+  --ok-soft: #d1fae5;
+  --ok-ink: #065f46;
+  --warn: #d97706;
+  --warn-soft: #fef3c7;
+  --warn-ink: #92400e;
+  --danger: #e11d48;
+  --danger-soft: #ffe0e6;
+  --danger-ink: #9f1239;
+  --neutral-state: #475569;
+  --neutral-state-soft: #e2e8f0;
+
+  --radius-sm: 0.75rem;
+  --radius-md: 1.125rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 1.75rem;
+  --shadow-sm: 0 1px 2px rgba(20, 23, 15, 0.06), 0 1px 4px rgba(20, 23, 15, 0.05);
+  --shadow-md: 0 6px 20px rgba(20, 23, 15, 0.08);
+  --shadow-lg: 0 12px 32px rgba(20, 23, 15, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface-alt); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+
+.status-radio:checked + label {
+  box-shadow: 0 4px 14px rgba(20, 23, 15, 0.08);
+}
+
+/* ---------- Botões ---------- */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  background: var(--brand-600);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+.btn-primary:hover { background: var(--brand-700); box-shadow: var(--shadow-md); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-secondary:hover { background: var(--surface-alt); border-color: var(--ink-faint); }
+
+.btn-fab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 1.35rem;
+  border-radius: 9999px;
+  background: var(--brand-600);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.btn-fab:hover { background: var(--brand-700); transform: translateY(-2px); }
+.btn-fab:active { transform: translateY(0) scale(0.97); }
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 9999px;
+  color: currentColor;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.btn-icon:hover { background: var(--surface-alt); }
+.btn-icon--on-dark { color: rgba(255, 255, 255, 0.75); }
+.btn-icon--on-dark:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+
+/* ---------- Formulários ---------- */
+
+.form-input {
+  width: 100%;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.9rem;
+  font-size: 0.875rem;
+  color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.form-input::placeholder { color: var(--ink-faint); }
+.form-input:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px var(--brand-100);
+  background: var(--surface);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.35rem;
+}
+
+/* ---------- Cartão genérico ---------- */
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Busca em pílula (topbar) ---------- */
+
+.search-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 0.6rem 1rem;
+  color: var(--ink-faint);
+}
+.search-pill input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.875rem;
+  color: var(--ink);
+  width: 100%;
+}
+.search-pill input::placeholder { color: var(--ink-faint); }
+
+/* ---------- Segmentado (abas tipo Todos/Pendentes) ---------- */
+
+.segmented {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface-alt);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.segmented-btn {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  border-radius: 9999px;
+  text-align: center;
+  color: var(--ink-soft);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.segmented-btn.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Badges / pílulas de status ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge--ok { background: var(--ok-soft); color: var(--ok-ink); }
+.badge--warn { background: var(--warn-soft); color: var(--warn-ink); }
+.badge--danger { background: var(--danger-soft); color: var(--danger-ink); }
+.badge--neutral { background: var(--neutral-state-soft); color: var(--neutral-state); }
+.badge--brand { background: var(--brand-50); color: var(--brand-700); }
+
+/* ---------- App shell: sidebar + topbar ---------- */
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  align-items: stretch;
+}
+
+.sidebar {
+  width: 17rem;
+  flex-shrink: 0;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 1.75rem 1.25rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 30;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0 0.5rem;
+  margin-bottom: 2rem;
+}
+.sidebar-logo-mark {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  background: var(--brand-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sidebar-logo-word {
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.sidebar-section-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0 0.9rem;
+  margin: 0.35rem 0;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 1.25rem;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar-nav-item:hover { background: var(--surface-alt); color: var(--ink); }
+.sidebar-nav-item.active {
+  background: var(--brand-600);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.sidebar-nav-item .badge-count {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+}
+.sidebar-nav-item:not(.active) .badge-count {
+  background: var(--surface-alt);
+  color: var(--ink-soft);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar-chip-initials {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background: var(--brand-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+/* ---------- Stat cards (dashboard) ---------- */
+
+.stat-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 1.1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.stat-card--accent {
+  background: var(--brand-600);
+  border-color: var(--brand-600);
+  color: #fff;
+}
+.stat-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.stat-card-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.stat-card--accent .stat-card-label { color: rgba(255, 255, 255, 0.78); }
+.stat-card-icon-btn {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-alt);
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+.stat-card--accent .stat-card-icon-btn { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.stat-card-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.stat-card-trend {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--brand-600);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.stat-card--accent .stat-card-trend { color: rgba(255, 255, 255, 0.85); }
+
+/* ---------- Cartão de contraste escuro ---------- */
+
+.dark-card {
+  background: var(--dark);
+  color: var(--dark-ink);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ---------- Responsivo: sidebar vira barra superior compacta ---------- */
+
+@media (max-width: 900px) {
+  .app-shell { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+  }
+  .sidebar-logo { margin-bottom: 0; margin-right: 1rem; flex-shrink: 0; }
+  .sidebar-section-label { display: none; }
+  .sidebar-nav { flex-direction: row; margin-bottom: 0; }
+  .sidebar-nav-item { white-space: nowrap; }
+  .sidebar-footer { margin-top: 0; margin-left: auto; padding-top: 0; border-top: none; }
+}

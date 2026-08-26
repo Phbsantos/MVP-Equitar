@@ -1,6 +1,4 @@
 let appointmentsData = [];
-let meusAtendimentosData = [];
-let currentTab = 'equipe';
 
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -10,31 +8,6 @@ function escapeHtml(text) {
 
 function escapeJsString(text) {
     return String(text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
-
-function switchTab(tabName) {
-    currentTab = tabName;
-    const btnEquipe = document.getElementById('tab-btn-equipe');
-    const btnMeus = document.getElementById('tab-btn-meus');
-    const contentEquipe = document.getElementById('content-equipe');
-    const contentMeus = document.getElementById('content-meus');
-
-    if (tabName === 'equipe') {
-        btnEquipe.className =
-            'border-blue-600 text-blue-700 font-semibold py-4 px-1 inline-flex items-center space-x-2 border-b-2 text-sm transition-all focus:outline-none';
-        btnMeus.className =
-            'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium py-4 px-1 inline-flex items-center space-x-2 border-b-2 text-sm transition-all focus:outline-none';
-        contentEquipe.classList.remove('hidden');
-        contentMeus.classList.add('hidden');
-    } else {
-        btnMeus.className =
-            'border-blue-600 text-blue-700 font-semibold py-4 px-1 inline-flex items-center space-x-2 border-b-2 text-sm transition-all focus:outline-none';
-        btnEquipe.className =
-            'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium py-4 px-1 inline-flex items-center space-x-2 border-b-2 text-sm transition-all focus:outline-none';
-        contentMeus.classList.remove('hidden');
-        contentEquipe.classList.add('hidden');
-        loadMeusAtendimentos();
-    }
 }
 
 function getStatusBadgeHTML(status) {
@@ -64,31 +37,6 @@ function getStatusBadgeHTML(status) {
                         <span>${escapeHtml(status)}</span>
                     </span>`;
     }
-}
-
-function getMeuStatusBadgeHTML(status) {
-    switch (status) {
-        case 'Realizado':
-            return `<span class="bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2 py-0.5 rounded-full">Realizado</span>`;
-        case 'Falta sem Aviso':
-            return `<span class="bg-rose-100 text-rose-700 text-[11px] font-semibold px-2 py-0.5 rounded-full">Falta sem Aviso</span>`;
-        case 'Desmarcado':
-            return `<span class="bg-slate-100 text-slate-700 text-[11px] font-semibold px-2 py-0.5 rounded-full">Desmarcado</span>`;
-        default:
-            return `<span class="bg-amber-100 text-amber-800 text-[11px] font-semibold px-2 py-0.5 rounded-full">${escapeHtml(status)}</span>`;
-    }
-}
-
-function getMeuTimeBoxClasses(status) {
-    if (status === 'Realizado') return 'bg-blue-50 text-blue-700';
-    if (status === 'Falta sem Aviso') return 'bg-rose-50 text-rose-700';
-    return 'bg-amber-50 text-amber-700';
-}
-
-function getMeuTimeLabelClasses(status) {
-    if (status === 'Realizado') return 'text-blue-500';
-    if (status === 'Falta sem Aviso') return 'text-rose-500';
-    return 'text-amber-500';
 }
 
 function renderEquipeLoading() {
@@ -161,51 +109,6 @@ function renderAppointments(data) {
     updateKPIs();
 }
 
-function renderMeusAtendimentos(data) {
-    const container = document.getElementById('meus-atendimentos-list');
-    const countBadge = document.getElementById('meus-count-badge');
-
-    countBadge.textContent = `${data.length} Agendamento${data.length === 1 ? '' : 's'} Hoje`;
-    document.getElementById('badge-meus-count').textContent = data.length;
-
-    if (data.length === 0) {
-        container.innerHTML = `
-            <div class="p-8 text-center text-slate-500 text-sm">
-                Nenhum atendimento encontrado para hoje.
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = data
-        .map(
-            (item) => `
-        <div class="p-4 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="flex items-start space-x-4">
-                <div class="${getMeuTimeBoxClasses(item.status)} font-bold px-3 py-2 rounded-xl text-center min-w-[70px]">
-                    <span class="block text-xs uppercase ${getMeuTimeLabelClasses(item.status)}">${escapeHtml(item.dataLabel)}</span>
-                    <span class="text-sm">${escapeHtml(item.hora)}</span>
-                </div>
-                <div>
-                    <div class="flex items-center space-x-2">
-                        <h3 class="font-bold text-slate-800 text-base">${escapeHtml(item.paciente)}</h3>
-                        ${getMeuStatusBadgeHTML(item.status)}
-                    </div>
-                    <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(item.especialidade)}</p>
-                    <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-door-open mr-1"></i> ${escapeHtml(item.sala)}</p>
-                </div>
-            </div>
-            <div class="flex items-center space-x-2 self-end sm:self-center">
-                <button onclick="openProntuario('${escapeJsString(item.paciente)}', '${escapeJsString(item.terapeuta)}', '${escapeJsString(item.status)}', '${escapeJsString(item.prontuario)}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl transition-all">
-                    <i class="fa-solid fa-file-medical mr-1.5 text-blue-600"></i> Ver Prontuário
-                </button>
-            </div>
-        </div>
-    `
-        )
-        .join('');
-}
-
 function updateKPIs() {
     const total = appointmentsData.length;
     const realizados = appointmentsData.filter((a) => a.status === 'Realizado').length;
@@ -257,28 +160,6 @@ async function loadEquipeDia() {
         appointmentsData = [];
         renderAppointments([]);
         showToast(error.message || 'Erro ao carregar agenda da equipe.', 'error');
-    }
-}
-
-async function loadMeusAtendimentos() {
-    const container = document.getElementById('meus-atendimentos-list');
-    container.innerHTML = `
-        <div class="p-8 text-center text-slate-500 text-sm">
-            <i class="fa-solid fa-spinner fa-spin text-blue-600 mr-2"></i> Carregando seus atendimentos...
-        </div>
-    `;
-
-    try {
-        meusAtendimentosData = await SupervisorApi.fetchMeusAtendimentos();
-        renderMeusAtendimentos(meusAtendimentosData);
-    } catch (error) {
-        console.error(error);
-        meusAtendimentosData = [];
-        container.innerHTML = `
-            <div class="p-8 text-center text-rose-600 text-sm">
-                ${escapeHtml(error.message || 'Erro ao carregar seus atendimentos.')}
-            </div>
-        `;
     }
 }
 
@@ -382,6 +263,7 @@ async function handleAgendamentoSubmit(event) {
         terapeuta: document.getElementById('modal-terapeuta').value,
         data: document.getElementById('modal-data').value,
         hora: document.getElementById('modal-hora').value,
+        tipo: document.getElementById('modal-tipo').value,
     });
 
     try {

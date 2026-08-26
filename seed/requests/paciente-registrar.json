@@ -1,0 +1,60 @@
+{
+  "method": "POST",
+  "endpoint": "/paciente/registrar",
+  "requests": [
+    {
+      "nome_completo": "Enzo Martins",
+      "data_nascimento": "2018-04-12",
+      "responsavel_nome": "Patricia Martins",
+      "telefone_whatsapp": "+55 11 98888-1234",
+      "terapeuta_responsavel_nome": "Fernanda Duarte",
+      "plano_saude": "Unimed",
+      "status": "Em Acompanhamento"
+    },
+    {
+      "nome_completo": "Alice Ferreira",
+      "data_nascimento": "2016-09-03",
+      "responsavel_nome": "Carlos Ferreira",
+      "telefone_whatsapp": "+55 11 97777-2345",
+      "terapeuta_responsavel_nome": "Rafael Nogueira",
+      "plano_saude": "Particular",
+      "status": "Em Acompanhamento"
+    },
+    {
+      "nome_completo": "Davi Souza",
+      "data_nascimento": "2019-01-22",
+      "responsavel_nome": "Renata Souza",
+      "telefone_whatsapp": "+55 11 96666-3456",
+      "terapeuta_responsavel_nome": "Bruno Castro",
+      "plano_saude": "Bradesco Saúde",
+      "status": "Em Acompanhamento"
+    },
+    {
+      "nome_completo": "Laura Pinto",
+      "data_nascimento": "2015-11-30",
+      "responsavel_nome": "Marcelo Pinto",
+      "telefone_whatsapp": "+55 11 95555-4567",
+      "terapeuta_responsavel_nome": "Juliana Prado",
+      "plano_saude": "SulAmérica",
+      "status": "Em Acompanhamento"
+    },
+    {
+      "nome_completo": "Miguel Rocha",
+      "data_nascimento": "2017-06-18",
+      "responsavel_nome": "Fernanda Rocha",
+      "telefone_whatsapp": "+55 11 94444-5678",
+      "terapeuta_responsavel_nome": "Fernanda Duarte",
+      "plano_saude": "Amil",
+      "status": "Alta"
+    },
+    {
+      "nome_completo": "Sofia Lima",
+      "data_nascimento": "2020-02-09",
+      "responsavel_nome": "Bianca Lima",
+      "telefone_whatsapp": "+55 11 93333-6789",
+      "terapeuta_responsavel_nome": null,
+      "plano_saude": "Particular",
+      "status": "Em Acompanhamento"
+    }
+  ]
+}

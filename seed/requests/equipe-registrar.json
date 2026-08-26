@@ -1,0 +1,16 @@
+{
+  "method": "POST",
+  "endpoint": "/equipe/registrar",
+  "requests": [
+    {
+      "nome_equipe": "Equipe Manhã",
+      "supervisor_nome": "Camila Alves",
+      "membros_nomes": ["Fernanda Duarte", "Rafael Nogueira", "Camila Alves"]
+    },
+    {
+      "nome_equipe": "Equipe Tarde",
+      "supervisor_nome": "Juliana Prado",
+      "membros_nomes": ["Bruno Castro", "Juliana Prado"]
+    }
+  ]
+}

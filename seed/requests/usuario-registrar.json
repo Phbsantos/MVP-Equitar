@@ -1,0 +1,76 @@
+{
+  "method": "POST",
+  "endpoint": "/usuario/registrar",
+  "requests": [
+    {
+      "nome": "Fernanda Duarte",
+      "email": "fernanda.duarte@equitar.com.br",
+      "senha": "trocar123",
+      "perfil_role": "Terapeuta",
+      "especialidade": "Fonoaudiologia",
+      "numero_conselho": "CRFa2 12345",
+      "equipe_nome": "Equipe Manhã",
+      "status": "Ativo"
+    },
+    {
+      "nome": "Rafael Nogueira",
+      "email": "rafael.nogueira@equitar.com.br",
+      "senha": "trocar123",
+      "perfil_role": "Terapeuta",
+      "especialidade": "Psicologia",
+      "numero_conselho": "CRP 06/98765",
+      "equipe_nome": "Equipe Manhã",
+      "status": "Ativo"
+    },
+    {
+      "nome": "Camila Alves",
+      "email": "camila.alves@equitar.com.br",
+      "senha": "trocar123",
+      "perfil_role": "Supervisor",
+      "especialidade": "Terapia Ocupacional",
+      "numero_conselho": "CREFITO-3 12345-TO",
+      "equipe_nome": "Equipe Manhã",
+      "status": "Ativo"
+    },
+    {
+      "nome": "Bruno Castro",
+      "email": "bruno.castro@equitar.com.br",
+      "senha": "trocar123",
+      "perfil_role": "Terapeuta",
+      "especialidade": "Psicomotricidade",
+      "numero_conselho": "CREF 054321-G/SP",
+      "equipe_nome": "Equipe Tarde",
+      "status": "Ativo"
+    },
+    {
+      "nome": "Juliana Prado",
+      "email": "juliana.prado@equitar.com.br",
+      "senha": "trocar123",
+      "perfil_role": "Supervisor",
+      "especialidade": "Fonoaudiologia",
+      "numero_conselho": "CRFa2 54321",
+      "equipe_nome": "Equipe Tarde",
+      "status": "Ativo"
+    },
+    {
+      "nome": "Marcos Teixeira",
+      "email": "marcos.teixeira@equitar.com.br",
+      "senha": "trocar123",
+      "perfil_role": "Coordenador",
+      "especialidade": null,
+      "numero_conselho": null,
+      "equipe_nome": null,
+      "status": "Ativo"
+    },
+    {
+      "nome": "Ana Beatriz Lima",
+      "email": "ana.lima@equitar.com.br",
+      "senha": "trocar123",
+      "perfil_role": "Admin",
+      "especialidade": null,
+      "numero_conselho": null,
+      "equipe_nome": null,
+      "status": "Ativo"
+    }
+  ]
+}

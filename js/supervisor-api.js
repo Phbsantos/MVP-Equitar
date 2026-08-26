@@ -4,6 +4,23 @@ const SupervisorApi = {
         return value || '';
     },
 
+    // Mesmo problema documentado em ApiService.resolveLinkedName (js/api.js):
+    // Paciente_Nome/Terapeuta_Nome/Supervisor_Nome agora trazem o record ID
+    // do Airtable, não o nome. O nome legível vem no lookup correspondente.
+    looksLikeRecordId(value) {
+        return typeof value === 'string' && /^rec[a-zA-Z0-9]{14,}$/.test(value);
+    },
+
+    resolveLinkedName(fields, linkField, lookupField) {
+        const lookupValue = this.firstOrValue(fields[lookupField]);
+        if (lookupValue) return lookupValue;
+
+        const linkValue = this.firstOrValue(fields[linkField]);
+        if (linkValue && !this.looksLikeRecordId(linkValue)) return linkValue;
+
+        return '';
+    },
+
     normalizeRecordsResponse(data) {
         if (data == null) return [];
 
@@ -31,13 +48,6 @@ const SupervisorApi = {
         });
     },
 
-    formatDateBrasilia(isoDate) {
-        if (!isoDate) return '--';
-        return new Date(isoDate).toLocaleDateString('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
-        });
-    },
-
     formatTimeRange(isoDate, durationMinutes = 45) {
         if (!isoDate) return '--:--';
         const start = new Date(isoDate);
@@ -49,13 +59,6 @@ const SupervisorApi = {
                 timeZone: 'America/Sao_Paulo',
             });
         return `${format(start)} - ${format(end)}`;
-    },
-
-    isTodayBrasilia(isoDate) {
-        if (!isoDate) return false;
-        const today = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-        const appointmentDate = new Date(isoDate).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-        return today === appointmentDate;
     },
 
     getClinicalNotes(fields, status) {
@@ -82,9 +85,12 @@ const SupervisorApi = {
 
         return {
             id: record.id || fields.ID,
-            paciente: this.firstOrValue(fields.Paciente_Nome) || fields.Nome || 'Paciente não informado',
-            terapeuta: this.firstOrValue(fields.Terapeuta_Nome) || 'Terapeuta não informado',
-            supervisor: this.firstOrValue(fields.Supervisor_Nome) || CONFIG.SUPERVISOR_NOME,
+            paciente:
+                this.resolveLinkedName(fields, 'Paciente_Nome', 'Nome_Completo (from Paciente_Nome)') ||
+                fields.Nome ||
+                'Paciente não informado',
+            terapeuta: this.resolveLinkedName(fields, 'Terapeuta_Nome', 'Nome (from Terapeuta_Nome)') || 'Terapeuta não informado',
+            supervisor: this.resolveLinkedName(fields, 'Supervisor_Nome', 'Nome (from Supervisor_Nome)') || CONFIG.SUPERVISOR_NOME,
             especialidade: fields.Especialidade || 'Multiprofissional',
             horario: this.formatTimeRange(fields.Data_Hora),
             hora: this.formatTimeBrasilia(fields.Data_Hora),
@@ -95,30 +101,46 @@ const SupervisorApi = {
         };
     },
 
-    transformMeuAtendimento(record) {
-        const fields = record.fields || record;
-        const status = this.normalizeDisplayStatus(fields.Status_Presenca);
+    // 2026-08-26: /supervisor/equipe-dia não existe na base nova — a lista
+    // de endpoints não trouxe substituto direto. Reconstruído a partir de
+    // /listar/equipes (corrigido nesta mesma data — antes devolvia a
+    // tabela errada) + /listar/atendimentos (filtrado no cliente, já que o
+    // endpoint ignora query string — ver nota em ApiService.fetchAtendimentosDia).
+    // O campo Membros já vem como rollup com os nomes prontos (não precisa
+    // resolver link por ID); Supervisor é resolvido via o lookup
+    // "Nome (from Supervisor)".
+    async fetchEquipeMembros(supervisorNome) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_EQUIPES}`;
+        const response = await fetch(url);
 
-        return {
-            id: record.id || fields.ID,
-            paciente: this.firstOrValue(fields.Paciente_Nome) || fields.Nome || 'Paciente não informado',
-            terapeuta: this.firstOrValue(fields.Terapeuta_Nome) || CONFIG.SUPERVISOR_NOME,
-            especialidade: fields.Especialidade || 'Terapia Ocupacional',
-            hora: this.formatTimeBrasilia(fields.Data_Hora),
-            dataLabel: this.isTodayBrasilia(fields.Data_Hora) ? 'Hoje' : this.formatDateBrasilia(fields.Data_Hora),
-            status,
-            prontuario: this.getClinicalNotes(fields, fields.Status_Presenca),
-            sala: fields.Sala || 'Sala não informada',
-            dataHora: fields.Data_Hora,
-        };
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar equipes (${response.status})`);
+        }
+
+        const data = await response.json();
+        const equipes = this.normalizeRecordsResponse(data);
+        const normalizedSupervisor = supervisorNome.trim().toLowerCase();
+
+        const equipe = equipes.find((record) => {
+            const fields = record.fields || record;
+            const supervisorDaEquipe = this.firstOrValue(fields['Nome (from Supervisor)']);
+            return (supervisorDaEquipe || '').trim().toLowerCase() === normalizedSupervisor;
+        });
+
+        if (!equipe) return [supervisorNome];
+
+        const fields = equipe.fields || equipe;
+        const membros = Array.isArray(fields.Membros) ? fields.Membros : [];
+        return membros.length ? membros : [supervisorNome];
     },
 
     async fetchEquipeDia(date) {
         const session = AuthApi.getSession();
-        const params = new URLSearchParams({ supervisor_nome: (session && session.nome) || CONFIG.SUPERVISOR_NOME });
-        if (date) params.set('data', date);
+        const supervisorNome = (session && session.nome) || CONFIG.SUPERVISOR_NOME;
 
-        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.SUPERVISOR_EQUIPE_DIA}?${params.toString()}`;
+        const membros = (await this.fetchEquipeMembros(supervisorNome)).map((nome) => nome.trim().toLowerCase());
+
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}`;
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -128,27 +150,24 @@ const SupervisorApi = {
         const data = await response.json();
         return this.normalizeRecordsResponse(data)
             .map((record) => this.transformEquipeRecord(record))
+            .filter((item) => {
+                const matchesEquipe = membros.includes(item.terapeuta.trim().toLowerCase());
+                const matchesData = !date || (item.dataHora || '').slice(0, 10) === date;
+                return matchesEquipe && matchesData;
+            })
             .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
     },
 
-    async fetchMeusAtendimentos() {
-        const session = AuthApi.getSession();
-        const params = new URLSearchParams({ terapeuta: (session && session.nome) || CONFIG.SUPERVISOR_NOME });
-        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.ATENDIMENTOS_DIA}?${params.toString()}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`Erro ao carregar seus atendimentos (${response.status})`);
-        }
-
-        const data = await response.json();
-        return this.normalizeRecordsResponse(data)
-            .map((record) => this.transformMeuAtendimento(record))
-            .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
-    },
-
+    // 2026-08-26: testado e funcionando. A primeira rodada de teste tinha
+    // dado HTTP 200 com corpo vazio e parecia um bug no workflow, mas era
+    // a codificação UTF-8 do meu teste em curl corrompendo texto acentuado
+    // (ex: "Sessão Regular" chegando como "Sess�o Regular", rejeitado pelo
+    // Single Select do Airtable) — não um bug do n8n. Retestado com o
+    // corpo vindo de um arquivo (bypassando o shell) e criou o registro
+    // normalmente. O fetch()/JSON.stringify() do navegador nunca teve esse
+    // problema, então isso nunca afetou o app de verdade.
     async agendarSessaoAvulsa(payload) {
-        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.AGENDAR_EXTRA}`;
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.ATENDIMENTO_CRIAR}`;
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -160,12 +179,18 @@ const SupervisorApi = {
             throw new Error(errorText || `Erro ao agendar sessão (${response.status})`);
         }
 
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-            return response.json();
+        // Mantemos parsing tolerante a corpo vazio por segurança (não
+        // custa nada), mas não é mais esperado que aconteça.
+        const rawText = await response.text().catch(() => '');
+        if (!rawText) {
+            return { success: true };
         }
 
-        return { success: true };
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            return { success: true };
+        }
     },
 
     buildAgendamentoPayload(formData) {
@@ -175,6 +200,7 @@ const SupervisorApi = {
             terapeuta_nome: formData.terapeuta,
             data_hora: `${formData.data}T${formData.hora}:00-03:00`,
             supervisor_nome: (session && session.nome) || CONFIG.SUPERVISOR_NOME,
+            tipo_atendimento: formData.tipo || 'Sessão Extra/Reforço',
         };
     },
 };

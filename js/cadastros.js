@@ -38,8 +38,8 @@ function switchCadastroTab(tab) {
     const tabPaciente = document.getElementById('tab-paciente');
     const tabUsuario = document.getElementById('tab-usuario');
 
-    const activeClass = 'flex-1 py-2 rounded-md text-center bg-white shadow-sm text-slate-800 font-semibold transition';
-    const inactiveClass = 'flex-1 py-2 rounded-md text-center text-slate-600 hover:text-slate-900 transition';
+    const activeClass = 'segmented-btn active';
+    const inactiveClass = 'segmented-btn';
 
     if (tab === 'paciente') {
         btnPaciente.className = activeClass;
