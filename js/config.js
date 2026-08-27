@@ -2,10 +2,11 @@ const CONFIG = {
     TERAPEUTA: 'Dr. João Silva',
     TERAPEUTA_CREFITO: 'CREFITO-3/12345-TO',
     SUPERVISOR_NOME: 'Dr. João Silva',
-    // 2026-08-26: base trocada para a nova instância n8n (phbsantos1). Os
-    // endpoints antigos abaixo (comentados) ficaram na instância antiga e
-    // não devem mais ser usados.
-    API_BASE: 'https://phbsantos1.app.n8n.cloud/webhook/api',
+    // 2026-08-27: base de produção mudou de phbsantos1 pra phbsantos2.
+    // Antes dela, era phbsantos1 (troca em 2026-08-26); a phbsantos original
+    // (sem número) já tinha ficado pra trás nessa data também. Nenhuma
+    // versão anterior deve mais ser usada.
+    API_BASE: 'https://phbsantos2.app.n8n.cloud/webhook/api',
     ENDPOINTS: {
         // --- Listagem (GET) ---
         LISTAR_USUARIOS: '/listar/usuarios',
@@ -40,15 +41,14 @@ const CONFIG = {
         // Testado e funcionando (2026-08-26).
         ATENDIMENTO_CRIAR: '/criar/atendimento',
 
-        // --- Ainda sem substituto funcional na nova base (bloqueado) ---
-        // Login: o caminho existe na base nova (não dá 404 — comparado com
-        // um path genuinamente não registrado, que dá 404 com mensagem
-        // clara do n8n), mas devolve HTTP 200 com corpo vazio tanto pra
-        // credenciais válidas quanto inválidas (testado 2026-08-26). Ou
-        // seja: o workflow está registrado mas não retorna sessão/usuário
-        // pra nenhum caso — provavelmente um stub ainda não conectado à
-        // consulta de usuário/checagem de senha. Login não funciona até
-        // isso ser implementado.
+        // Login: testado e funcionando (corrigido em 2026-08-26, depois de
+        // começar quebrado com HTTP 200 vazio pra tudo). Resposta de
+        // sucesso vem achatada (não é o {id, fields} cru do Airtable) e sem
+        // Perfil_Role/Email/Status — por isso AuthApi.login() completa a
+        // sessão com uma segunda busca em /listar/usuarios pelo id.
+        // Ainda não retestado especificamente na base phbsantos2 (2026-08-27)
+        // — vale confirmar os 3 casos (sucesso, e-mail errado, senha errada)
+        // de novo já que mudou de instância.
         USUARIO_LOGIN: '/usuario/login',
         // Agenda filtrada por equipe do supervisor: sem endpoint dedicado —
         // reconstruído no cliente (ver SupervisorApi.fetchEquipeMembroIds/
