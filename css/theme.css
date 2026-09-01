@@ -138,6 +138,38 @@ body {
 .btn-fab:hover { background: var(--brand-700); transform: translateY(-2px); }
 .btn-fab:active { transform: translateY(0) scale(0.97); }
 
+/* ---------- Menu do FAB (speed-dial) — ex: atalhos do Coordenador ---------- */
+
+.fab-menu-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem 0.5rem 1rem;
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.fab-menu-item:hover { background: var(--surface-alt); transform: translateX(-2px); }
+.fab-menu-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: var(--brand-50);
+  color: var(--brand-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .btn-icon {
   display: inline-flex;
   align-items: center;

@@ -20,6 +20,92 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col selection:bg-clinical-100 selection:text-clinical-800">
 
+    <!-- FAB de ações rápidas — só aparece pra perfil Coordenador (ver
+         initCoordenadorFab em coordenacao.js). Reúne atalhos pros Cadastros
+         e o agendamento de um atendimento avulso sem sair da tela. -->
+    <div id="coordenador-fab" class="hidden fixed bottom-24 right-6 z-40 flex flex-col items-end gap-2">
+        <div id="coordenador-fab-menu" class="hidden flex flex-col items-end gap-2">
+            <a href="cadastros.html?tab=paciente" class="fab-menu-item">
+                <span>Novo Paciente</span>
+                <span class="fab-menu-icon"><i data-lucide="user-round" class="w-4 h-4"></i></span>
+            </a>
+            <a href="cadastros.html?tab=usuario" class="fab-menu-item">
+                <span>Novo Usuário</span>
+                <span class="fab-menu-icon"><i data-lucide="user-cog" class="w-4 h-4"></i></span>
+            </a>
+            <a href="cadastros.html?tab=recorrencia" class="fab-menu-item">
+                <span>Nova Recorrência</span>
+                <span class="fab-menu-icon"><i data-lucide="repeat" class="w-4 h-4"></i></span>
+            </a>
+            <button type="button" onclick="openAtendimentoAvulsoModal()" class="fab-menu-item">
+                <span>Atendimento Avulso</span>
+                <span class="fab-menu-icon"><i data-lucide="calendar-plus" class="w-4 h-4"></i></span>
+            </button>
+        </div>
+        <button type="button" onclick="toggleCoordenadorFabMenu()" class="btn-fab" title="Ações rápidas">
+            <i data-lucide="plus" class="w-5 h-5" id="coordenador-fab-icon"></i>
+            <span>Ações</span>
+        </button>
+    </div>
+
+    <div id="modal-atendimento-avulso" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between" style="background:var(--surface-alt)">
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2" style="color:var(--ink)">
+                        <i data-lucide="calendar-plus" class="w-4 h-4" style="color:var(--brand-600)"></i>
+                        Atendimento Avulso
+                    </h3>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Agenda um atendimento pontual, fora da recorrência padrão.</p>
+                </div>
+                <button onclick="closeAtendimentoAvulsoModal()" class="btn-icon" title="Fechar">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-atendimento-avulso" onsubmit="handleAtendimentoAvulsoSubmit(event)" class="p-5 space-y-4">
+                <div>
+                    <label for="atendimento-avulso-paciente" class="form-label">Paciente <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="atendimento-avulso-paciente" required placeholder="Carregando pacientes..." disabled class="form-input">
+                </div>
+
+                <div>
+                    <label for="atendimento-avulso-terapeuta" class="form-label">Terapeuta <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="atendimento-avulso-terapeuta" required placeholder="Carregando terapeutas..." disabled class="form-input">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="atendimento-avulso-data" class="form-label">Data <span style="color:var(--danger)">*</span></label>
+                        <input type="date" id="atendimento-avulso-data" required class="form-input">
+                    </div>
+                    <div>
+                        <label for="atendimento-avulso-hora" class="form-label">Horário <span style="color:var(--danger)">*</span></label>
+                        <input type="time" id="atendimento-avulso-hora" required class="form-input">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="atendimento-avulso-tipo" class="form-label">Tipo de Atendimento</label>
+                    <select id="atendimento-avulso-tipo" class="form-input">
+                        <option value="Sessão Extra/Reforço">Sessão Extra/Reforço</option>
+                        <option value="Avaliação Inicial">Avaliação Inicial</option>
+                        <option value="Supervisão Presencial Conjunta">Supervisão Presencial Conjunta</option>
+                        <option value="Acolhimento Familiar">Acolhimento Familiar</option>
+                    </select>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-3 border-t" style="border-color:var(--border)">
+                    <button type="button" onclick="closeAtendimentoAvulsoModal()" class="btn-secondary">Cancelar</button>
+                    <button type="submit" id="atendimento-avulso-submit-btn" class="btn-primary">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Agendar Atendimento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="app-shell">
     <aside id="sidebar-root"></aside>
     <div class="app-main">
@@ -405,6 +491,7 @@
 
     <script src="js/autocomplete.js"></script>
     <script src="js/pacientes-api.js"></script>
+    <script src="js/usuarios-api.js"></script>
     <script src="js/cadastro-api.js"></script>
     <script src="js/coordenacao-api.js"></script>
     <script src="js/components/ui.js"></script>

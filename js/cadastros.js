@@ -169,4 +169,11 @@ window.addEventListener('DOMContentLoaded', () => {
     terapeutaAutocomplete = attachAutocomplete(document.getElementById('paciente-terapeuta-responsavel'), { options: [] });
     loadTerapeutasOptions();
     loadEquipesOptions();
+
+    // Permite linkar direto pra uma aba, ex: cadastros.html?tab=recorrencia
+    // (usado pelo FAB de ações rápidas do Coordenador em coordenacao.html)
+    const tabParam = new URLSearchParams(window.location.search).get('tab');
+    if (['paciente', 'usuario', 'recorrencia'].includes(tabParam)) {
+        switchCadastroTab(tabParam);
+    }
 });

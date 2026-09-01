@@ -1012,6 +1012,127 @@ async function handleNovoRelatorioSubmit(event) {
     }
 }
 
+// -----------------------------------------------------------------------
+// FAB de ações rápidas (só Coordenador) — atalhos pros Cadastros e
+// agendamento de um Atendimento Avulso sem sair da tela.
+// -----------------------------------------------------------------------
+function initCoordenadorFab() {
+    const session = AuthApi.getSession();
+    const fab = document.getElementById('coordenador-fab');
+    if (!fab) return;
+    fab.classList.toggle('hidden', !(session && session.perfilRole === 'Coordenador'));
+}
+
+function openCoordenadorFabMenu() {
+    document.getElementById('coordenador-fab-menu').classList.remove('hidden');
+    document.getElementById('coordenador-fab-icon').setAttribute('data-lucide', 'x');
+    lucide.createIcons();
+}
+
+function closeCoordenadorFabMenu() {
+    document.getElementById('coordenador-fab-menu').classList.add('hidden');
+    document.getElementById('coordenador-fab-icon').setAttribute('data-lucide', 'plus');
+    lucide.createIcons();
+}
+
+function toggleCoordenadorFabMenu() {
+    const menu = document.getElementById('coordenador-fab-menu');
+    if (menu.classList.contains('hidden')) openCoordenadorFabMenu();
+    else closeCoordenadorFabMenu();
+}
+
+// -----------------------------------------------------------------------
+// Modal de Atendimento Avulso — cria um atendimento pontual de verdade via
+// /criar/atendimento (já testado e funcionando, ver CadastroApi.criarAtendimento).
+// -----------------------------------------------------------------------
+let pacienteAutocompleteAtendimentoAvulso = null;
+let terapeutaAutocompleteAtendimentoAvulso = null;
+let opcoesAtendimentoAvulsoCarregadas = false;
+
+async function loadOpcoesAtendimentoAvulso() {
+    if (opcoesAtendimentoAvulsoCarregadas) return;
+    opcoesAtendimentoAvulsoCarregadas = true;
+
+    try {
+        const [pacientes, terapeutas] = await Promise.all([PacientesApi.fetchPacientes(), UsuariosApi.fetchTerapeutas()]);
+
+        const pacienteInput = document.getElementById('atendimento-avulso-paciente');
+        pacienteAutocompleteAtendimentoAvulso.setOptions(pacientes.map((p) => ({ id: p.id, label: p.nome, sublabel: p.planoSaude || '' })));
+        pacienteInput.disabled = false;
+        pacienteInput.placeholder = 'Digite o nome do paciente...';
+
+        const terapeutaInput = document.getElementById('atendimento-avulso-terapeuta');
+        terapeutaAutocompleteAtendimentoAvulso.setOptions(terapeutas.map((t) => ({ id: t.id, label: t.nome, sublabel: t.especialidade || '' })));
+        terapeutaInput.disabled = false;
+        terapeutaInput.placeholder = 'Digite o nome do terapeuta...';
+    } catch (error) {
+        console.error(error);
+        opcoesAtendimentoAvulsoCarregadas = false; // deixa tentar de novo na próxima abertura
+        showToast(error.message || 'Erro ao carregar pacientes/terapeutas.', 'error');
+    }
+}
+
+function openAtendimentoAvulsoModal() {
+    closeCoordenadorFabMenu();
+
+    document.getElementById('atendimento-avulso-data').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('modal-atendimento-avulso').classList.remove('hidden');
+    loadOpcoesAtendimentoAvulso();
+    lucide.createIcons();
+}
+
+function closeAtendimentoAvulsoModal() {
+    document.getElementById('modal-atendimento-avulso').classList.add('hidden');
+}
+
+async function handleAtendimentoAvulsoSubmit(event) {
+    event.preventDefault();
+
+    const pacienteNome = document.getElementById('atendimento-avulso-paciente').value.trim();
+    const terapeutaNome = document.getElementById('atendimento-avulso-terapeuta').value.trim();
+    const data = document.getElementById('atendimento-avulso-data').value;
+    const hora = document.getElementById('atendimento-avulso-hora').value;
+    const tipo = document.getElementById('atendimento-avulso-tipo').value;
+
+    if (!pacienteNome || !terapeutaNome || !data || !hora) {
+        showToast('Preencha paciente, terapeuta, data e horário antes de agendar.', 'error');
+        return;
+    }
+
+    const submitBtn = document.getElementById('atendimento-avulso-submit-btn');
+    const originalHtml = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Agendando...';
+    lucide.createIcons();
+
+    const session = AuthApi.getSession();
+    const payload = CadastroApi.buildAtendimentoPayload({
+        pacienteNome,
+        terapeutaNome,
+        dataHora: `${data}T${hora}:00-03:00`,
+        supervisorNome: (session && session.nome) || '',
+        tipoAtendimento: tipo,
+    });
+
+    try {
+        await CadastroApi.criarAtendimento(payload);
+        showToast(`Atendimento avulso agendado para ${pacienteNome}!`, 'success');
+        closeAtendimentoAvulsoModal();
+        document.getElementById('form-atendimento-avulso').reset();
+        // Recarrega tudo da base pra já refletir o novo atendimento nas
+        // outras abas (Atendimentos/Indicadores), igual já fazemos após
+        // criar um relatório avulso.
+        await loadCoordenacaoDados();
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao agendar atendimento.', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHtml;
+        lucide.createIcons();
+    }
+}
+
 let pacienteAutocompleteFiltroAtendimento = null;
 let pacienteAutocompleteFiltroIndicador = null;
 
@@ -1045,6 +1166,10 @@ window.addEventListener('DOMContentLoaded', () => {
         onSelect: () => renderIndicadores(),
     });
     loadPacientesParaNovoRelatorio();
+
+    pacienteAutocompleteAtendimentoAvulso = attachAutocomplete(document.getElementById('atendimento-avulso-paciente'), { options: [] });
+    terapeutaAutocompleteAtendimentoAvulso = attachAutocomplete(document.getElementById('atendimento-avulso-terapeuta'), { options: [] });
+    initCoordenadorFab();
 
     // Permite linkar direto pra uma aba, ex: coordenacao.html?tab=relatorios
     const tabParam = new URLSearchParams(window.location.search).get('tab');
