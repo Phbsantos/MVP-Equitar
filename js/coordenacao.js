@@ -503,13 +503,22 @@ function exportComoXml(relatorios, nomeArquivo) {
 
 // Imprime via um iframe invisível — evita bloqueio de pop-up e deixa o
 // usuário escolher "Salvar como PDF" na própria caixa de impressão.
+//
+// Importante: print() é chamado NA HORA, logo depois do doc.close(), sem
+// esperar o evento "load" do iframe. Esperar por ele (como a versão
+// anterior fazia) não é confiável — document.write() nem sempre redispara
+// o load — e mesmo quando dispara, chamar print() de dentro de um callback
+// assíncrono pode perder a permissão de "gesto do usuário" que o navegador
+// exige pra abrir a caixa de impressão, bloqueando ela silenciosamente.
+// Como doc.write()/doc.close() são síncronos, o conteúdo já está pronto
+// nesse ponto — não precisa esperar nada.
 function exportComoPdf(conteudoHtml) {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
+    iframe.style.top = '0';
+    iframe.style.left = '-10000px';
+    iframe.style.width = '800px';
+    iframe.style.height = '600px';
     iframe.style.border = '0';
     document.body.appendChild(iframe);
 
@@ -518,11 +527,15 @@ function exportComoPdf(conteudoHtml) {
     doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Evolução de Paciente</title></head><body>${conteudoHtml}</body></html>`);
     doc.close();
 
-    iframe.onload = () => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        setTimeout(() => document.body.removeChild(iframe), 1000);
+    const limpar = () => {
+        if (iframe.parentNode) document.body.removeChild(iframe);
     };
+
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+
+    iframe.contentWindow.addEventListener('afterprint', limpar, { once: true });
+    setTimeout(limpar, 5000); // rede de segurança, caso "afterprint" não dispare
 }
 
 // Gera um .doc compatível com o Word usando o formato HTML-com-namespace do
