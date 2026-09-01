@@ -17,9 +17,14 @@ const Topbar = {
     render({ title = '', subtitle = '', actionsHtml = '' } = {}) {
         return `
             <div class="px-5 sm:px-8 py-5 flex items-center justify-between gap-4 flex-wrap">
-                <div class="min-w-0">
-                    <h1 class="text-xl sm:text-2xl font-extrabold" style="color:var(--ink)">${title}</h1>
-                    ${subtitle ? `<p class="text-sm mt-0.5" style="color:var(--ink-soft)">${subtitle}</p>` : ''}
+                <div class="flex items-center gap-3 min-w-0">
+                    <button type="button" class="topbar-menu-btn" onclick="Sidebar.toggleMobile()" title="Abrir menu" aria-label="Abrir menu">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+                    <div class="min-w-0">
+                        <h1 class="text-xl sm:text-2xl font-extrabold" style="color:var(--ink)">${title}</h1>
+                        ${subtitle ? `<p class="text-sm mt-0.5" style="color:var(--ink-soft)">${subtitle}</p>` : ''}
+                    </div>
                 </div>
 
                 <div class="flex items-center gap-2 sm:gap-3 shrink-0">

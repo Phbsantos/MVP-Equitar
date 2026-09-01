@@ -47,15 +47,65 @@
         <div id="coordenacao-content" class="hidden space-y-6">
 
             <!-- Aba: Atendimentos realizados -->
-            <div id="tab-panel-atendimentos">
+            <div id="tab-panel-atendimentos" class="space-y-4">
+                <section class="card p-5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider mb-4" style="color:var(--ink-faint)">Filtros</h2>
+                    <form id="filterFormAtendimentos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+                        <div>
+                            <label for="filter-atendimento-paciente" class="form-label">Paciente</label>
+                            <input type="text" id="filter-atendimento-paciente" placeholder="Nome do paciente..." class="form-input">
+                        </div>
+                        <div>
+                            <label for="filter-atendimento-terapeuta" class="form-label">Terapeuta</label>
+                            <select id="filter-atendimento-terapeuta" class="form-input">
+                                <option value="">Todos os terapeutas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-atendimento-plano" class="form-label">Plano</label>
+                            <select id="filter-atendimento-plano" class="form-input">
+                                <option value="">Todos os planos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-atendimento-evolucao" class="form-label">Evolução</label>
+                            <select id="filter-atendimento-evolucao" class="form-input">
+                                <option value="">Com ou sem evolução</option>
+                                <option value="com">Com evolução</option>
+                                <option value="sem">Sem evolução</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-atendimento-data-inicio" class="form-label">De</label>
+                            <input type="date" id="filter-atendimento-data-inicio" class="form-input">
+                        </div>
+                        <div>
+                            <label for="filter-atendimento-data-fim" class="form-label">Até</label>
+                            <input type="date" id="filter-atendimento-data-fim" class="form-input">
+                        </div>
+                        <div class="sm:col-span-2 lg:col-span-6 flex gap-2 justify-end">
+                            <button type="button" onclick="clearAtendimentoFilters()" class="btn-secondary">Limpar filtros</button>
+                            <button type="submit" class="btn-primary">
+                                <i data-lucide="filter" class="w-4 h-4"></i>
+                                Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                <div class="flex items-center justify-between px-1">
+                    <h2 class="text-sm font-bold" style="color:var(--ink)">Atendimentos</h2>
+                    <span id="atendimentos-count-badge" class="badge badge--neutral">0 atendimento(s)</span>
+                </div>
+
                 <div id="atendimentos-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
 
                 <div id="atendimentos-empty" class="hidden card p-10 text-center">
                     <div class="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style="background:var(--surface-alt); color:var(--ink-faint)">
                         <i data-lucide="calendar-check" class="w-6 h-6"></i>
                     </div>
-                    <h3 class="text-sm font-semibold" style="color:var(--ink)">Nenhum atendimento realizado ainda</h3>
-                    <p class="text-xs mt-1" style="color:var(--ink-soft)">Assim que terapeutas concluírem sessões, elas aparecem aqui.</p>
+                    <h3 class="text-sm font-semibold" style="color:var(--ink)">Nenhum atendimento encontrado</h3>
+                    <p class="text-xs mt-1" style="color:var(--ink-soft)">Ajuste os filtros ou limpe-os para ver todos.</p>
                 </div>
             </div>
 
@@ -88,7 +138,7 @@
                             <label for="filter-relatorio-data-fim" class="form-label">Até</label>
                             <input type="date" id="filter-relatorio-data-fim" class="form-input">
                         </div>
-                        <div class="lg:col-span-5 flex gap-2 justify-end">
+                        <div class="sm:col-span-2 lg:col-span-5 flex gap-2 justify-end">
                             <button type="button" onclick="clearRelatorioFilters()" class="btn-secondary">Limpar filtros</button>
                             <button type="submit" class="btn-primary">
                                 <i data-lucide="filter" class="w-4 h-4"></i>
@@ -109,6 +159,28 @@
                     </button>
                 </div>
 
+                <div id="relatorio-selection-toolbar" class="hidden card p-3 flex items-center justify-between flex-wrap gap-3" style="background:var(--brand-50, #f0f7f2); border-color:var(--brand-200, #cfe3d6)">
+                    <div class="flex items-center gap-2 text-sm font-semibold" style="color:var(--ink)">
+                        <i data-lucide="check-square" class="w-4 h-4"></i>
+                        <span id="relatorio-selection-count">0 selecionado(s)</span>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" onclick="clearRelatorioSelection()" class="btn-secondary">Limpar seleção</button>
+                        <button type="button" onclick="exportSelectedRelatorios('xml')" class="btn-secondary">
+                            <i data-lucide="file-code" class="w-4 h-4"></i>
+                            Exportar XML
+                        </button>
+                        <button type="button" onclick="exportSelectedRelatorios('word')" class="btn-secondary">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            Exportar Word
+                        </button>
+                        <button type="button" onclick="exportSelectedRelatorios('pdf')" class="btn-primary">
+                            <i data-lucide="file-down" class="w-4 h-4"></i>
+                            Exportar PDF
+                        </button>
+                    </div>
+                </div>
+
                 <div id="relatorios-container" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
 
                 <div id="relatorios-empty" class="hidden card p-10 text-center">
@@ -120,78 +192,103 @@
                 </div>
             </div>
 
-            <!-- Aba: Indicadores (dashboard antigo — segue bloqueado no endpoint /coordenacao/metricas) -->
-            <div id="tab-panel-indicadores" class="hidden space-y-6">
-                <div id="loading-state" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
-                    <div class="flex flex-col items-center gap-3 text-slate-500">
-                        <i data-lucide="loader-2" class="w-6 h-6 text-clinical-600 animate-spin"></i>
-                        <p class="text-sm font-medium text-slate-700">Carregando indicadores...</p>
+            <!-- Aba: Indicadores — 100% client-side, montada sobre os mesmos
+                 Atendimentos/Relatórios já carregados (ver js/coordenacao.js) -->
+            <div id="tab-panel-indicadores" class="hidden space-y-4">
+                <section class="card p-5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider mb-4" style="color:var(--ink-faint)">Filtros</h2>
+                    <form id="filterFormIndicadores" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                        <div>
+                            <label for="filter-indicador-paciente" class="form-label">Paciente</label>
+                            <input type="text" id="filter-indicador-paciente" placeholder="Nome do paciente..." class="form-input">
+                        </div>
+                        <div>
+                            <label for="filter-indicador-terapeuta" class="form-label">Terapeuta</label>
+                            <select id="filter-indicador-terapeuta" class="form-input">
+                                <option value="">Todos os terapeutas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-indicador-data-inicio" class="form-label">De</label>
+                            <input type="date" id="filter-indicador-data-inicio" class="form-input">
+                        </div>
+                        <div>
+                            <label for="filter-indicador-data-fim" class="form-label">Até</label>
+                            <input type="date" id="filter-indicador-data-fim" class="form-input">
+                        </div>
+                        <div class="sm:col-span-2 lg:col-span-5 flex gap-2 justify-end">
+                            <button type="button" onclick="clearIndicadorFilters()" class="btn-secondary">Limpar filtros</button>
+                            <button type="submit" class="btn-primary">
+                                <i data-lucide="filter" class="w-4 h-4"></i>
+                                Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                <section id="indicadores-kpis-root" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></section>
+
+                <section class="card overflow-hidden">
+                    <div class="p-4 border-b flex items-center justify-between flex-wrap gap-2" style="border-color:var(--border)">
+                        <h2 class="text-sm font-bold flex items-center gap-2" style="color:var(--ink)">
+                            <i data-lucide="alert-triangle" class="w-4 h-4" style="color:var(--warn)"></i>
+                            Atendimentos realizados sem evolução
+                        </h2>
+                        <span id="indicadores-sem-evolucao-badge" class="badge badge--warn">0 caso(s)</span>
                     </div>
-                </div>
+                    <div id="indicadores-sem-evolucao-container" class="divide-y" style="border-color:var(--border)"></div>
+                    <div id="indicadores-sem-evolucao-empty" class="hidden p-8 text-center text-sm" style="color:var(--ink-faint)">
+                        Nenhum atendimento realizado sem evolução no filtro atual. 🎉
+                    </div>
+                </section>
 
-                <div id="dashboard-content" class="hidden space-y-6">
-                    <section class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                        <div class="col-span-2 lg:col-span-1 bg-clinical-600 text-white p-4 rounded-2xl shadow-sm flex flex-col justify-between">
-                            <p class="text-xs font-medium text-clinical-100">Taxa de Assiduidade</p>
-                            <p id="metric-assiduidade" class="text-3xl font-bold mt-1">0%</p>
-                            <p class="text-[11px] text-clinical-100 mt-0.5">Realizados / Agendados</p>
-                        </div>
+                <section class="card overflow-hidden">
+                    <div class="p-4 border-b" style="border-color:var(--border)">
+                        <h2 class="text-sm font-bold" style="color:var(--ink)">Por terapeuta</h2>
+                        <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Atendimentos realizados, com e sem evolução vinculada.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left" style="color:var(--ink-faint)">
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Terapeuta</th>
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Realizados</th>
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Com evolução</th>
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Sem evolução</th>
+                                </tr>
+                            </thead>
+                            <tbody id="indicadores-terapeuta-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="indicadores-terapeuta-empty" class="hidden p-8 text-center text-sm" style="color:var(--ink-faint)">
+                        Nenhum atendimento realizado no filtro atual.
+                    </div>
+                </section>
 
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <p class="text-xs font-medium text-slate-500">Agendados</p>
-                                <i data-lucide="calendar-days" class="w-4 h-4 text-blue-500"></i>
-                            </div>
-                            <p id="metric-total" class="text-2xl font-bold text-slate-900 mt-1">0</p>
-                        </div>
-
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <p class="text-xs font-medium text-slate-500">Realizados</p>
-                                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
-                            </div>
-                            <p id="metric-realizados" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
-                        </div>
-
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <p class="text-xs font-medium text-slate-500">Faltas s/ Aviso</p>
-                                <i data-lucide="user-x" class="w-4 h-4 text-rose-600"></i>
-                            </div>
-                            <p id="metric-faltas" class="text-2xl font-bold text-rose-600 mt-1">0</p>
-                        </div>
-
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <p class="text-xs font-medium text-slate-500">Desmarcados</p>
-                                <i data-lucide="calendar-x" class="w-4 h-4 text-amber-600"></i>
-                            </div>
-                            <p id="metric-desmarcados" class="text-2xl font-bold text-amber-600 mt-1">0</p>
-                        </div>
-                    </section>
-
-                    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                        <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                            <h2 class="font-bold text-slate-900 text-base flex items-center gap-2">
-                                <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i>
-                                Alertas de Absenteísmo
-                            </h2>
-                            <span id="alerts-count-badge" class="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-semibold">
-                                0 alerta(s)
-                            </span>
-                        </div>
-
-                        <div id="alerts-container" class="divide-y divide-slate-100"></div>
-
-                        <div id="alerts-empty" class="hidden p-8 text-center text-slate-400 text-xs">
-                            Nenhum paciente com faltas consecutivas no momento.
-                        </div>
-                    </section>
-                </div>
-
-                <div id="error-state" class="hidden card p-8 text-center">
-                    <p id="error-message" class="text-slate-500 text-sm font-medium">Não foi possível carregar os indicadores.</p>
-                </div>
+                <section class="card overflow-hidden">
+                    <div class="p-4 border-b" style="border-color:var(--border)">
+                        <h2 class="text-sm font-bold" style="color:var(--ink)">Por paciente</h2>
+                        <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Faltas, desmarcações e sessões realizadas — ordenado por maior risco.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left" style="color:var(--ink-faint)">
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Paciente</th>
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Realizados</th>
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Faltas</th>
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Desmarcados</th>
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Cancelados</th>
+                                    <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Alerta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="indicadores-paciente-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="indicadores-paciente-empty" class="hidden p-8 text-center text-sm" style="color:var(--ink-faint)">
+                        Nenhum atendimento no filtro atual.
+                    </div>
+                </section>
             </div>
         </div>
     </main>
@@ -310,6 +407,7 @@
     <script src="js/pacientes-api.js"></script>
     <script src="js/cadastro-api.js"></script>
     <script src="js/coordenacao-api.js"></script>
+    <script src="js/components/ui.js"></script>
     <script src="js/coordenacao.js"></script>
 </body>
 </html>

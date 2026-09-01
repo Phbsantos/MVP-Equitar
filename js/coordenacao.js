@@ -89,7 +89,9 @@ function withSessionEdits(relatorio) {
 // re-render, sem round-trip novo à API.
 // -----------------------------------------------------------------------
 let allAtendimentos = [];
+let allAtendimentosTodos = []; // todos os status — usado só pela aba Indicadores
 let allRelatorios = [];
+let selectedRelatorioIds = new Set();
 let editingRelatorioId = null;
 
 function findRelatorioById(id) {
@@ -111,10 +113,7 @@ function switchCoordenacaoTab(tab) {
         document.getElementById(`tab-panel-${t}`).classList.toggle('hidden', t !== tab);
     });
 
-    if (tab === 'indicadores' && !window.__coordenacaoIndicadoresLoaded) {
-        window.__coordenacaoIndicadoresLoaded = true;
-        loadIndicadores();
-    }
+    if (tab === 'indicadores') renderIndicadores();
 }
 
 // -----------------------------------------------------------------------
@@ -162,18 +161,80 @@ function renderAtendimentoCard(atendimento) {
     `;
 }
 
+function populateAtendimentoFilterOptions() {
+    const planos = [...new Set(allAtendimentos.map((a) => a.planoSaude).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, 'pt-BR')
+    );
+    const terapeutas = [...new Set(allAtendimentos.map((a) => a.terapeutaNome).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, 'pt-BR')
+    );
+
+    const planoSelect = document.getElementById('filter-atendimento-plano');
+    const terapeutaSelect = document.getElementById('filter-atendimento-terapeuta');
+
+    planoSelect.innerHTML =
+        '<option value="">Todos os planos</option>' +
+        planos.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+
+    terapeutaSelect.innerHTML =
+        '<option value="">Todos os terapeutas</option>' +
+        terapeutas.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+}
+
+function getAtendimentoFilters() {
+    return {
+        paciente: document.getElementById('filter-atendimento-paciente').value.trim().toLowerCase(),
+        terapeuta: document.getElementById('filter-atendimento-terapeuta').value,
+        plano: document.getElementById('filter-atendimento-plano').value,
+        evolucao: document.getElementById('filter-atendimento-evolucao').value, // '' | 'com' | 'sem'
+        dataInicio: document.getElementById('filter-atendimento-data-inicio').value,
+        dataFim: document.getElementById('filter-atendimento-data-fim').value,
+    };
+}
+
+// Todos os filtros combinam com E (não é "ou um ou outro") — dá pra usar
+// terapeuta + período, ou terapeuta + plano, ao mesmo tempo.
+function applyAtendimentoFilters(atendimentos, filters) {
+    return atendimentos.filter((a) => {
+        if (filters.paciente && !a.pacienteNome.toLowerCase().includes(filters.paciente)) return false;
+        if (filters.terapeuta && a.terapeutaNome !== filters.terapeuta) return false;
+        if (filters.plano && a.planoSaude !== filters.plano) return false;
+        if (filters.evolucao === 'com' && !a.relatorio) return false;
+        if (filters.evolucao === 'sem' && a.relatorio) return false;
+
+        if (a.dataHora) {
+            const data = new Date(a.dataHora);
+            if (filters.dataInicio && data < new Date(filters.dataInicio)) return false;
+            if (filters.dataFim && data > new Date(`${filters.dataFim}T23:59:59`)) return false;
+        }
+
+        return true;
+    });
+}
+
+function clearAtendimentoFilters() {
+    document.getElementById('filterFormAtendimentos').reset();
+    renderAtendimentosTab();
+}
+
 function renderAtendimentosTab() {
+    const filters = getAtendimentoFilters();
+    const filtered = applyAtendimentoFilters(allAtendimentos, filters);
+
     const container = document.getElementById('atendimentos-container');
     const empty = document.getElementById('atendimentos-empty');
+    const countBadge = document.getElementById('atendimentos-count-badge');
 
-    if (allAtendimentos.length === 0) {
+    countBadge.innerText = `${filtered.length} atendimento(s)`;
+
+    if (filtered.length === 0) {
         container.innerHTML = '';
         empty.classList.remove('hidden');
         return;
     }
 
     empty.classList.add('hidden');
-    container.innerHTML = allAtendimentos.map(renderAtendimentoCard).join('');
+    container.innerHTML = filtered.map(renderAtendimentoCard).join('');
     lucide.createIcons();
 }
 
@@ -229,15 +290,20 @@ function applyRelatorioFilters(relatorios, filters) {
 function renderRelatorioCard(relatorioOriginal) {
     const relatorio = withSessionEdits(relatorioOriginal);
     const tipoBadgeClass = relatorio.tipo === 'Evolução' ? 'badge--ok' : 'badge--brand';
+    const selecionado = selectedRelatorioIds.has(relatorio.id);
 
     return `
-        <div class="card p-5 flex flex-col gap-3">
+        <div class="card p-5 flex flex-col gap-3" style="${selecionado ? 'outline:2px solid var(--brand-500, #2f8f5b); outline-offset:-2px;' : ''}">
             <div class="flex items-start justify-between gap-3 flex-wrap">
-                <div>
-                    <h3 class="text-base font-bold" style="color:var(--ink)">${escapeHtml(relatorio.pacienteNome)}</h3>
-                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">
-                        ${formatDate(relatorio.data)} · ${escapeHtml(relatorio.autorNome)}${relatorio.planoSaude ? ` · ${escapeHtml(relatorio.planoSaude)}` : ''}
-                    </p>
+                <div class="flex items-start gap-3">
+                    <input type="checkbox" class="mt-1 w-4 h-4 shrink-0" ${selecionado ? 'checked' : ''}
+                        onchange="toggleRelatorioSelection('${relatorio.id}', this.checked)" title="Selecionar para exportar" />
+                    <div>
+                        <h3 class="text-base font-bold" style="color:var(--ink)">${escapeHtml(relatorio.pacienteNome)}</h3>
+                        <p class="text-xs mt-0.5" style="color:var(--ink-soft)">
+                            ${formatDate(relatorio.data)} · ${escapeHtml(relatorio.autorNome)}${relatorio.planoSaude ? ` · ${escapeHtml(relatorio.planoSaude)}` : ''}
+                        </p>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="badge ${tipoBadgeClass}">${escapeHtml(relatorio.tipo)}</span>
@@ -273,11 +339,212 @@ function renderRelatoriosTab() {
     empty.classList.add('hidden');
     container.innerHTML = filtered.map(renderRelatorioCard).join('');
     lucide.createIcons();
+    updateRelatorioSelectionToolbar();
 }
 
 function clearRelatorioFilters() {
     document.getElementById('filterFormRelatorios').reset();
     renderRelatoriosTab();
+}
+
+// -----------------------------------------------------------------------
+// Seleção de relatórios para exportação — só permite selecionar relatórios
+// do mesmo paciente por vez (decisão explícita do usuário).
+// -----------------------------------------------------------------------
+function toggleRelatorioSelection(id, checked) {
+    const relatorio = findRelatorioById(id);
+    if (!relatorio) return;
+
+    if (checked) {
+        const jaSelecionado = getSelectedRelatoriosSorted()[0];
+        if (jaSelecionado && jaSelecionado.pacienteNome !== relatorio.pacienteNome) {
+            showToast(
+                `Só é possível exportar relatórios de um paciente por vez. Desmarque os relatórios de "${jaSelecionado.pacienteNome}" antes de selecionar outro paciente.`,
+                'error'
+            );
+            renderRelatoriosTab();
+            return;
+        }
+        selectedRelatorioIds.add(id);
+    } else {
+        selectedRelatorioIds.delete(id);
+    }
+
+    updateRelatorioSelectionToolbar();
+}
+
+function clearRelatorioSelection() {
+    selectedRelatorioIds.clear();
+    renderRelatoriosTab();
+}
+
+function getSelectedRelatoriosSorted() {
+    return [...selectedRelatorioIds]
+        .map((id) => findRelatorioById(id))
+        .filter(Boolean)
+        .map((r) => withSessionEdits(r))
+        .sort((a, b) => new Date(a.data || 0) - new Date(b.data || 0));
+}
+
+function updateRelatorioSelectionToolbar() {
+    const toolbar = document.getElementById('relatorio-selection-toolbar');
+    const countEl = document.getElementById('relatorio-selection-count');
+    if (!toolbar || !countEl) return;
+
+    const total = selectedRelatorioIds.size;
+    toolbar.classList.toggle('hidden', total === 0);
+    countEl.innerText = `${total} selecionado(s)`;
+}
+
+// -----------------------------------------------------------------------
+// Exportação de relatórios selecionados como documento de evolução.
+// Título "Evolução de Paciente" + dados do paciente/terapeuta, seguido
+// dos relatórios selecionados encadeados em ordem cronológica.
+// -----------------------------------------------------------------------
+function buildEvolucaoDocumentHtml(relatorios) {
+    const pacienteNome = relatorios[0].pacienteNome;
+    const autoresUnicos = [...new Set(relatorios.map((r) => r.autorNome).filter(Boolean))];
+    const terapeutaNome = autoresUnicos.length ? autoresUnicos.join(' / ') : '—';
+
+    const entradas = relatorios
+        .map(
+            (r) => `
+                <div style="margin-bottom:18px;">
+                    <p style="margin:0 0 4px 0; font-weight:bold;">${escapeHtml(formatDate(r.data))}</p>
+                    <p style="margin:0; white-space:pre-wrap;">${escapeHtml(r.conteudo) || 'Sem conteúdo registrado.'}</p>
+                </div>
+            `
+        )
+        .join('');
+
+    return `
+        <div style="font-family:Calibri,Arial,sans-serif; font-size:14px; color:#111; padding:24px;">
+            <h1 style="text-align:center; font-size:20px; margin:0 0 24px 0;">Evolução de Paciente</h1>
+            <div style="text-align:left; margin-bottom:20px;">
+                <p style="margin:0 0 4px 0;"><strong>Nome do paciente:</strong> ${escapeHtml(pacienteNome)}</p>
+                <p style="margin:0;"><strong>Nome do terapeuta:</strong> ${escapeHtml(terapeutaNome)}</p>
+            </div>
+            <hr style="border:none; border-top:1px solid #ccc; margin:0 0 20px 0;" />
+            ${entradas}
+        </div>
+    `;
+}
+
+function exportSelectedRelatorios(formato) {
+    const relatorios = getSelectedRelatoriosSorted();
+    if (relatorios.length === 0) {
+        showToast('Selecione ao menos um relatório para exportar.', 'error');
+        return;
+    }
+
+    const pacienteNome = relatorios[0].pacienteNome;
+    const conteudoHtml = buildEvolucaoDocumentHtml(relatorios);
+    const nomeArquivo = `Evolucao_${pacienteNome.replace(/[^a-zA-Z0-9]+/g, '_')}`;
+
+    if (formato === 'pdf') {
+        exportComoPdf(conteudoHtml);
+    } else if (formato === 'xml') {
+        exportComoXml(relatorios, nomeArquivo);
+    } else {
+        exportComoWord(conteudoHtml, nomeArquivo);
+    }
+}
+
+function escapeXmlText(text) {
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// Exporta os dados brutos dos relatórios selecionados como XML — pensado
+// para integração/uso em outro sistema, não para leitura em editor de texto.
+function buildEvolucaoXml(relatorios) {
+    const pacienteNome = relatorios[0].pacienteNome;
+    const autoresUnicos = [...new Set(relatorios.map((r) => r.autorNome).filter(Boolean))];
+    const terapeutaNome = autoresUnicos.length ? autoresUnicos.join(' / ') : '';
+
+    const itens = relatorios
+        .map(
+            (r) => `
+        <Relatorio>
+            <Id>${escapeXmlText(r.id)}</Id>
+            <Tipo>${escapeXmlText(r.tipo)}</Tipo>
+            <Autor>${escapeXmlText(r.autorNome)}</Autor>
+            <Data>${escapeXmlText(toDateInputValue(r.data))}</Data>
+            <PlanoSaude>${escapeXmlText(r.planoSaude)}</PlanoSaude>
+            <Conteudo>${escapeXmlText(r.conteudo)}</Conteudo>
+        </Relatorio>`
+        )
+        .join('');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<EvolucaoPaciente>
+    <Paciente>${escapeXmlText(pacienteNome)}</Paciente>
+    <Terapeuta>${escapeXmlText(terapeutaNome)}</Terapeuta>
+    <Relatorios>${itens}
+    </Relatorios>
+</EvolucaoPaciente>
+`;
+}
+
+function exportComoXml(relatorios, nomeArquivo) {
+    const xml = buildEvolucaoXml(relatorios);
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${nomeArquivo}.xml`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+// Imprime via um iframe invisível — evita bloqueio de pop-up e deixa o
+// usuário escolher "Salvar como PDF" na própria caixa de impressão.
+function exportComoPdf(conteudoHtml) {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Evolução de Paciente</title></head><body>${conteudoHtml}</body></html>`);
+    doc.close();
+
+    iframe.onload = () => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+    };
+}
+
+// Gera um .doc compatível com o Word usando o formato HTML-com-namespace do
+// próprio Word — não é um .docx (OOXML) real, mas abre e edita normalmente
+// no Word/LibreOffice sem depender de nenhuma biblioteca externa.
+function exportComoWord(conteudoHtml, nomeArquivo) {
+    const documentoCompleto = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="utf-8"><title>Evolução de Paciente</title></head>
+        <body>${conteudoHtml}</body>
+        </html>
+    `;
+
+    const blob = new Blob(['﻿', documentoCompleto], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${nomeArquivo}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 
 // -----------------------------------------------------------------------
@@ -332,17 +599,37 @@ async function loadCoordenacaoDados() {
     errorState.classList.add('hidden');
 
     try {
-        const [atendimentos, relatorios] = await Promise.all([
-            CoordenacaoApi.fetchAtendimentosRealizados(),
-            CoordenacaoApi.fetchRelatoriosCompletos(),
-        ]);
+        const { todosAtendimentos, atendimentosRealizados, relatorios } = await CoordenacaoApi.fetchAtendimentosComContexto();
 
-        allAtendimentos = atendimentos;
+        allAtendimentos = atendimentosRealizados;
+        allAtendimentosTodos = todosAtendimentos;
         allRelatorios = relatorios;
+        selectedRelatorioIds.clear();
 
+        populateAtendimentoFilterOptions();
         populateRelatorioFilterOptions();
+        populateIndicadorFilterOptions();
+        if (pacienteAutocompleteFiltroAtendimento) {
+            pacienteAutocompleteFiltroAtendimento.setOptions(
+                [...new Map(allAtendimentos.map((a) => [a.pacienteNome, a])).values()].map((a) => ({
+                    id: a.pacienteNome,
+                    label: a.pacienteNome,
+                    sublabel: a.planoSaude || '',
+                }))
+            );
+        }
+        if (pacienteAutocompleteFiltroIndicador) {
+            pacienteAutocompleteFiltroIndicador.setOptions(
+                [...new Map(allAtendimentosTodos.map((a) => [a.pacienteNome, a])).values()].map((a) => ({
+                    id: a.pacienteNome,
+                    label: a.pacienteNome,
+                    sublabel: a.planoSaude || '',
+                }))
+            );
+        }
         renderAtendimentosTab();
         renderRelatoriosTab();
+        renderIndicadores();
 
         loading.classList.add('hidden');
         content.classList.remove('hidden');
@@ -359,104 +646,259 @@ async function loadCoordenacaoDados() {
 }
 
 // -----------------------------------------------------------------------
-// Aba Indicadores — dashboard antigo, mantido como estava (ainda depende
-// do endpoint /coordenacao/metricas, que segue sem URL confirmada).
+// Aba Indicadores — 100% client-side, montada em cima dos mesmos
+// Atendimentos/Relatórios já carregados (allAtendimentosTodos inclui TODOS
+// os status, diferente de allAtendimentos que só tem Realizado). Não
+// depende do endpoint /coordenacao/metricas (nunca teve URL confirmada).
+//
+// Atenção: por um bug conhecido no n8n, Falta/Desmarcado/Cancelado ainda
+// são gravados como Status_Presenca "Realizado" na base — então até esse
+// bug ser corrigido no backend, os indicadores de Falta/Desmarcado/
+// Cancelado abaixo tendem a ficar subestimados (e "Realizados" superestimado).
 // -----------------------------------------------------------------------
-function renderMetricas(metricas) {
-    document.getElementById('metric-assiduidade').innerText = `${metricas.taxaAssiduidade}%`;
-    document.getElementById('metric-total').innerText = metricas.totalAgendados;
-    document.getElementById('metric-realizados').innerText = metricas.realizados;
-    document.getElementById('metric-faltas').innerText = metricas.faltasSemAviso;
-    document.getElementById('metric-desmarcados').innerText = metricas.desmarcados;
+function isFalta(status) {
+    return status === 'Falta sem Aviso';
+}
+function isDesmarcado(status) {
+    return typeof status === 'string' && status.includes('Desmarcado');
+}
+function isCancelado(status) {
+    return typeof status === 'string' && status.includes('Cancelado');
 }
 
-function renderAlertas(alertas) {
-    const container = document.getElementById('alerts-container');
-    const emptyState = document.getElementById('alerts-empty');
-    const countBadge = document.getElementById('alerts-count-badge');
+function populateIndicadorFilterOptions() {
+    const terapeutaSelect = document.getElementById('filter-indicador-terapeuta');
+    const terapeutas = [...new Set(allAtendimentosTodos.map((a) => a.terapeutaNome).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, 'pt-BR')
+    );
 
-    countBadge.innerText = `${alertas.length} alerta(s)`;
-    container.innerHTML = '';
+    const valorAtual = terapeutaSelect.value;
+    terapeutaSelect.innerHTML =
+        '<option value="">Todos os terapeutas</option>' +
+        terapeutas.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    if (terapeutas.includes(valorAtual)) terapeutaSelect.value = valorAtual;
+}
 
-    if (alertas.length === 0) {
-        emptyState.classList.remove('hidden');
-        return;
-    }
+function getIndicadorFilters() {
+    return {
+        paciente: document.getElementById('filter-indicador-paciente').value.trim().toLowerCase(),
+        terapeuta: document.getElementById('filter-indicador-terapeuta').value,
+        dataInicio: document.getElementById('filter-indicador-data-inicio').value,
+        dataFim: document.getElementById('filter-indicador-data-fim').value,
+    };
+}
 
-    emptyState.classList.add('hidden');
-
-    alertas.forEach((alerta) => {
-        const row = document.createElement('div');
-        row.className = 'p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
-        row.innerHTML = `
-            <div class="flex items-start gap-3">
-                <div class="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 font-bold text-xs">
-                    <i data-lucide="user-x" class="w-4 h-4"></i>
-                </div>
-                <div>
-                    <p class="font-bold text-slate-900 text-sm">${escapeHtml(alerta.pacienteNome)}</p>
-                    <p class="text-xs text-slate-500">Terapeuta: ${escapeHtml(alerta.terapeutaNome)}</p>
-                    <span class="inline-block mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
-                        ${alerta.faltasConsecutivas} falta(s) consecutiva(s)
-                    </span>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 self-end sm:self-center">
-                ${
-                    alerta.whatsappLink
-                        ? `<a href="${escapeHtml(alerta.whatsappLink)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition">
-                            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
-                            Contatar Responsável
-                        </a>`
-                        : `<span class="text-xs text-slate-400">Sem telefone cadastrado</span>`
-                }
-            </div>
-        `;
-        container.appendChild(row);
+function applyIndicadorFilters(atendimentos, filters) {
+    return atendimentos.filter((a) => {
+        if (filters.paciente && !a.pacienteNome.toLowerCase().includes(filters.paciente)) return false;
+        if (filters.terapeuta && a.terapeutaNome !== filters.terapeuta) return false;
+        if (a.dataHora) {
+            const data = new Date(a.dataHora);
+            if (filters.dataInicio && data < new Date(filters.dataInicio)) return false;
+            if (filters.dataFim && data > new Date(`${filters.dataFim}T23:59:59`)) return false;
+        }
+        return true;
     });
+}
 
+function clearIndicadorFilters() {
+    document.getElementById('filterFormIndicadores').reset();
+    if (pacienteAutocompleteFiltroIndicador) pacienteAutocompleteFiltroIndicador.clear();
+    renderIndicadores();
+}
+
+function computeIndicadoresResumo(atendimentos) {
+    const realizados = atendimentos.filter((a) => a.status === 'Realizado');
+    const comEvolucao = realizados.filter((a) => a.relatorio);
+    const semEvolucao = realizados.filter((a) => !a.relatorio);
+    const faltas = atendimentos.filter((a) => isFalta(a.status));
+    const desmarcados = atendimentos.filter((a) => isDesmarcado(a.status));
+    const cancelados = atendimentos.filter((a) => isCancelado(a.status));
+
+    const baseAssiduidade = realizados.length + faltas.length + desmarcados.length + cancelados.length;
+    const taxaAssiduidade = baseAssiduidade > 0 ? Math.round((realizados.length / baseAssiduidade) * 100) : 0;
+
+    return {
+        total: atendimentos.length,
+        realizados,
+        comEvolucao,
+        semEvolucao,
+        faltas,
+        desmarcados,
+        cancelados,
+        taxaAssiduidade,
+    };
+}
+
+function renderIndicadoresKpis(resumo) {
+    const root = document.getElementById('indicadores-kpis-root');
+    root.innerHTML = [
+        UI.statCard({ id: 'ind-kpi-total', label: 'Total no filtro', icon: 'calendar-days', initialValue: resumo.total, accent: true }),
+        UI.statCard({ id: 'ind-kpi-realizados', label: 'Realizados', icon: 'check-circle-2', initialValue: resumo.realizados.length }),
+        UI.statCard({ id: 'ind-kpi-com-evolucao', label: 'Com evolução', icon: 'file-check-2', initialValue: resumo.comEvolucao.length }),
+        UI.statCard({ id: 'ind-kpi-sem-evolucao', label: 'Sem evolução', icon: 'file-warning', initialValue: resumo.semEvolucao.length }),
+        UI.statCard({ id: 'ind-kpi-faltas', label: 'Faltas s/ aviso', icon: 'user-x', initialValue: resumo.faltas.length }),
+        UI.statCard({ id: 'ind-kpi-desmarcados', label: 'Desmarcados', icon: 'calendar-x', initialValue: resumo.desmarcados.length }),
+        UI.statCard({ id: 'ind-kpi-cancelados', label: 'Cancelados', icon: 'ban', initialValue: resumo.cancelados.length }),
+        UI.statCard({ id: 'ind-kpi-assiduidade', label: 'Taxa de assiduidade', icon: 'trending-up', initialValue: `${resumo.taxaAssiduidade}%` }),
+    ].join('');
     lucide.createIcons();
 }
 
-// Endpoint coordenacao-metricas ainda não tem URL confirmada em produção.
-// Enquanto isso, mostramos um estado "em breve" em vez de chamar o webhook.
-const COORDENACAO_DISPONIVEL = false;
+function renderIndicadoresSemEvolucao(semEvolucaoList) {
+    const container = document.getElementById('indicadores-sem-evolucao-container');
+    const empty = document.getElementById('indicadores-sem-evolucao-empty');
+    const badge = document.getElementById('indicadores-sem-evolucao-badge');
 
-async function loadIndicadores() {
-    const loadingState = document.getElementById('loading-state');
-    const dashboardContent = document.getElementById('dashboard-content');
-    const errorState = document.getElementById('error-state');
+    badge.innerText = `${semEvolucaoList.length} caso(s)`;
 
-    if (!COORDENACAO_DISPONIVEL) {
-        loadingState.classList.add('hidden');
-        dashboardContent.classList.add('hidden');
-        errorState.classList.remove('hidden');
-        document.getElementById('error-message').innerText =
-            'Painel em construção — aguardando a URL do endpoint coordenacao-metricas no n8n.';
+    if (semEvolucaoList.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
         return;
     }
 
-    loadingState.classList.remove('hidden');
-    dashboardContent.classList.add('hidden');
-    errorState.classList.add('hidden');
+    empty.classList.add('hidden');
+    container.innerHTML = semEvolucaoList
+        .map(
+            (a) => `
+        <div class="p-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+                <p class="text-sm font-semibold" style="color:var(--ink)">${escapeHtml(a.pacienteNome)}</p>
+                <p class="text-xs mt-0.5" style="color:var(--ink-soft)">
+                    ${formatDate(a.dataHora)} às ${formatTime(a.dataHora)} · ${escapeHtml(a.terapeutaNome)}
+                </p>
+            </div>
+            <span class="badge badge--warn">Sem evolução</span>
+        </div>
+    `
+        )
+        .join('');
+}
 
-    try {
-        const { metricas, alertas } = await CoordenacaoApi.fetchMetricas();
-        renderMetricas(metricas);
-        renderAlertas(alertas);
+function renderIndicadoresPorTerapeuta(atendimentos) {
+    const tbody = document.getElementById('indicadores-terapeuta-tbody');
+    const empty = document.getElementById('indicadores-terapeuta-empty');
 
-        loadingState.classList.add('hidden');
-        dashboardContent.classList.remove('hidden');
-    } catch (error) {
-        console.error(error);
-        loadingState.classList.add('hidden');
-        errorState.classList.remove('hidden');
-        document.getElementById('error-message').innerText =
-            error.message || 'Não foi possível carregar os indicadores.';
-        showToast(error.message || 'Erro ao carregar indicadores.', 'error');
-    } finally {
-        lucide.createIcons();
+    const porTerapeuta = new Map();
+    atendimentos
+        .filter((a) => a.status === 'Realizado')
+        .forEach((a) => {
+            if (!porTerapeuta.has(a.terapeutaNome)) {
+                porTerapeuta.set(a.terapeutaNome, { terapeuta: a.terapeutaNome, realizados: 0, comEvolucao: 0, semEvolucao: 0 });
+            }
+            const linha = porTerapeuta.get(a.terapeutaNome);
+            linha.realizados += 1;
+            if (a.relatorio) linha.comEvolucao += 1;
+            else linha.semEvolucao += 1;
+        });
+
+    const linhas = [...porTerapeuta.values()].sort(
+        (a, b) => b.semEvolucao - a.semEvolucao || a.terapeuta.localeCompare(b.terapeuta, 'pt-BR')
+    );
+
+    if (linhas.length === 0) {
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
     }
+
+    empty.classList.add('hidden');
+    tbody.innerHTML = linhas
+        .map(
+            (l) => `
+        <tr class="border-t" style="border-color:var(--border)">
+            <td class="px-4 py-3 font-semibold" style="color:var(--ink)">${escapeHtml(l.terapeuta)}</td>
+            <td class="px-4 py-3 text-center">${l.realizados}</td>
+            <td class="px-4 py-3 text-center"><span class="badge badge--ok">${l.comEvolucao}</span></td>
+            <td class="px-4 py-3 text-center">${
+                l.semEvolucao > 0 ? `<span class="badge badge--warn">${l.semEvolucao}</span>` : '0'
+            }</td>
+        </tr>
+    `
+        )
+        .join('');
+}
+
+// Conta faltas/desmarcações/cancelamentos consecutivos mais recentes de um
+// paciente, olhando o HISTÓRICO COMPLETO (não o filtro atual aplicado na
+// tela) — um alerta de risco não deveria sumir só porque o filtro de data
+// mudou.
+function computeFaltasConsecutivas(pacienteNome) {
+    const historico = allAtendimentosTodos
+        .filter((a) => a.pacienteNome === pacienteNome && a.status !== 'Agendado')
+        .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
+
+    let consecutivas = 0;
+    for (const a of historico) {
+        if (a.status === 'Realizado') break;
+        consecutivas += 1;
+    }
+    return consecutivas;
+}
+
+function renderIndicadoresPorPaciente(atendimentos) {
+    const tbody = document.getElementById('indicadores-paciente-tbody');
+    const empty = document.getElementById('indicadores-paciente-empty');
+
+    const porPaciente = new Map();
+    atendimentos.forEach((a) => {
+        if (!porPaciente.has(a.pacienteNome)) {
+            porPaciente.set(a.pacienteNome, { paciente: a.pacienteNome, realizados: 0, faltas: 0, desmarcados: 0, cancelados: 0 });
+        }
+        const linha = porPaciente.get(a.pacienteNome);
+        if (a.status === 'Realizado') linha.realizados += 1;
+        else if (isFalta(a.status)) linha.faltas += 1;
+        else if (isDesmarcado(a.status)) linha.desmarcados += 1;
+        else if (isCancelado(a.status)) linha.cancelados += 1;
+    });
+
+    const linhas = [...porPaciente.values()]
+        .map((l) => ({ ...l, faltasConsecutivas: computeFaltasConsecutivas(l.paciente) }))
+        .sort(
+            (a, b) =>
+                b.faltas + b.desmarcados + b.cancelados - (a.faltas + a.desmarcados + a.cancelados) ||
+                a.paciente.localeCompare(b.paciente, 'pt-BR')
+        );
+
+    if (linhas.length === 0) {
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+
+    empty.classList.add('hidden');
+    tbody.innerHTML = linhas
+        .map(
+            (l) => `
+        <tr class="border-t" style="border-color:var(--border)">
+            <td class="px-4 py-3 font-semibold" style="color:var(--ink)">${escapeHtml(l.paciente)}</td>
+            <td class="px-4 py-3 text-center">${l.realizados}</td>
+            <td class="px-4 py-3 text-center">${l.faltas > 0 ? `<span class="badge badge--danger">${l.faltas}</span>` : '0'}</td>
+            <td class="px-4 py-3 text-center">${
+                l.desmarcados > 0 ? `<span class="badge badge--warn">${l.desmarcados}</span>` : '0'
+            }</td>
+            <td class="px-4 py-3 text-center">${l.cancelados}</td>
+            <td class="px-4 py-3">${
+                l.faltasConsecutivas >= 2
+                    ? `<span class="badge badge--danger">${l.faltasConsecutivas} faltas seguidas</span>`
+                    : '<span style="color:var(--ink-faint)">—</span>'
+            }</td>
+        </tr>
+    `
+        )
+        .join('');
+}
+
+function renderIndicadores() {
+    const filters = getIndicadorFilters();
+    const filtered = applyIndicadorFilters(allAtendimentosTodos, filters);
+    const resumo = computeIndicadoresResumo(filtered);
+
+    renderIndicadoresKpis(resumo);
+    renderIndicadoresSemEvolucao(resumo.semEvolucao);
+    renderIndicadoresPorTerapeuta(filtered);
+    renderIndicadoresPorPaciente(filtered);
 }
 
 // -----------------------------------------------------------------------
@@ -557,6 +999,9 @@ async function handleNovoRelatorioSubmit(event) {
     }
 }
 
+let pacienteAutocompleteFiltroAtendimento = null;
+let pacienteAutocompleteFiltroIndicador = null;
+
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     document.getElementById('refresh-btn')?.addEventListener('click', loadCoordenacaoDados);
@@ -564,11 +1009,27 @@ window.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         renderRelatoriosTab();
     });
+    document.getElementById('filterFormAtendimentos')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        renderAtendimentosTab();
+    });
+    document.getElementById('filterFormIndicadores')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        renderIndicadores();
+    });
 
     pacienteAutocompleteRelatorio = attachAutocomplete(document.getElementById('novo-relatorio-paciente'), { options: [] });
     pacienteAutocompleteFiltro = attachAutocomplete(document.getElementById('filter-relatorio-paciente'), {
         options: [],
         onSelect: () => renderRelatoriosTab(),
+    });
+    pacienteAutocompleteFiltroAtendimento = attachAutocomplete(document.getElementById('filter-atendimento-paciente'), {
+        options: [],
+        onSelect: () => renderAtendimentosTab(),
+    });
+    pacienteAutocompleteFiltroIndicador = attachAutocomplete(document.getElementById('filter-indicador-paciente'), {
+        options: [],
+        onSelect: () => renderIndicadores(),
     });
     loadPacientesParaNovoRelatorio();
 

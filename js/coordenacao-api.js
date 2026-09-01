@@ -1,53 +1,4 @@
 const CoordenacaoApi = {
-    onlyDigits(value) {
-        return String(value || '').replace(/\D/g, '');
-    },
-
-    buildWhatsappLink(telefone) {
-        const digits = this.onlyDigits(telefone);
-        if (!digits) return '';
-        const withCountryCode = digits.startsWith('55') ? digits : `55${digits}`;
-        return `https://wa.me/${withCountryCode}`;
-    },
-
-    transformMetricas(raw) {
-        const metricas = raw?.metricas || {};
-        return {
-            taxaAssiduidade: Number(metricas.taxa_assiduidade) || 0,
-            totalAgendados: Number(metricas.total_agendados) || 0,
-            realizados: Number(metricas.realizados) || 0,
-            faltasSemAviso: Number(metricas.faltas_sem_aviso) || 0,
-            desmarcados: Number(metricas.desmarcados) || 0,
-        };
-    },
-
-    transformAlertas(raw) {
-        const alertas = Array.isArray(raw?.alertas_absenteismo) ? raw.alertas_absenteismo : [];
-        return alertas.map((item) => ({
-            pacienteNome: item.paciente_nome || 'Paciente não informado',
-            telefoneResponsavel: item.telefone_responsavel || '',
-            terapeutaNome: item.terapeuta_nome || 'Terapeuta não informado',
-            faltasConsecutivas: Number(item.faltas_consecutivas) || 0,
-            whatsappLink: this.buildWhatsappLink(item.telefone_responsavel),
-        }));
-    },
-
-    async fetchMetricas() {
-        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.COORDENACAO_METRICAS}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`Erro ao carregar indicadores (${response.status})`);
-        }
-
-        const data = await response.json();
-
-        return {
-            metricas: this.transformMetricas(data),
-            alertas: this.transformAlertas(data),
-        };
-    },
-
     // --- Atendimentos realizados + Relatórios, com Plano_Saude cruzado ---
     // Plano_Saude vive em Pacientes, não em Atendimentos nem Relatorios —
     // por isso todo fetch abaixo também busca /listar/pacientes pra montar
@@ -105,19 +56,11 @@ const CoordenacaoApi = {
         };
     },
 
-    async fetchRelatoriosCompletos() {
-        const [relatorios, pacientes] = await Promise.all([
-            this.fetchListar('LISTAR_RELATORIOS'),
-            this.fetchListar('LISTAR_PACIENTES'),
-        ]);
-        const planoMap = this.buildPlanoMap(pacientes);
-
-        return relatorios
-            .map((record) => this.transformRelatorio(record, planoMap))
-            .sort((a, b) => new Date(b.data) - new Date(a.data));
-    },
-
-    transformAtendimentoRealizado(record, planoMap, relatorioByAtendimentoId) {
+    // Transforma um Atendimento cru, mantendo o Status_Presenca original —
+    // usado pela aba Indicadores, que precisa enxergar Falta/Desmarcado/
+    // Cancelado/Agendado além de Realizado (fetchAtendimentosComContexto
+    // filtra pra Realizado só depois, pra montar a aba Atendimentos).
+    transformAtendimentoCompleto(record, planoMap, relatorioByAtendimentoId) {
         const fields = record.fields || record;
         const pacienteNome = this.firstOrValue(fields['Nome_Completo (from Paciente_Nome)']) || 'Paciente não informado';
 
@@ -128,12 +71,16 @@ const CoordenacaoApi = {
             dataHora: fields.Data_Hora || '',
             planoSaude: planoMap.get(pacienteNome.trim().toLowerCase()) || '',
             relatorio: relatorioByAtendimentoId.get(record.id) || null,
+            status: fields.Status_Presenca || 'Agendado',
         };
     },
 
-    // Busca tudo em paralelo (1 chamada por tabela) e cruza no cliente —
-    // depois disso trocar de aba é instantâneo, sem round-trip novo.
-    async fetchAtendimentosRealizados() {
+    // Busca Atendimentos + Relatórios + Pacientes em UMA rodada só (1
+    // chamada por tabela) e cruza tudo no cliente. Usado tanto pela aba
+    // Atendimentos (que só quer os Realizados) quanto pela aba Indicadores
+    // (que precisa de todos os status) — depois desse fetch, trocar de aba
+    // é instantâneo, sem round-trip novo.
+    async fetchAtendimentosComContexto() {
         const [atendimentos, relatorios, pacientes] = await Promise.all([
             this.fetchListar('LISTAR_ATENDIMENTOS'),
             this.fetchListar('LISTAR_RELATORIOS'),
@@ -141,15 +88,24 @@ const CoordenacaoApi = {
         ]);
 
         const planoMap = this.buildPlanoMap(pacientes);
+
+        const relatoriosTransformados = relatorios
+            .map((record) => this.transformRelatorio(record, planoMap))
+            .sort((a, b) => new Date(b.data) - new Date(a.data));
+
         const relatorioByAtendimentoId = new Map();
-        relatorios.forEach((record) => {
-            const transformed = this.transformRelatorio(record, planoMap);
-            if (transformed.atendimentoId) relatorioByAtendimentoId.set(transformed.atendimentoId, transformed);
+        relatoriosTransformados.forEach((r) => {
+            if (r.atendimentoId) relatorioByAtendimentoId.set(r.atendimentoId, r);
         });
 
-        return atendimentos
-            .filter((record) => (record.fields || record).Status_Presenca === 'Realizado')
-            .map((record) => this.transformAtendimentoRealizado(record, planoMap, relatorioByAtendimentoId))
+        const todosAtendimentos = atendimentos
+            .map((record) => this.transformAtendimentoCompleto(record, planoMap, relatorioByAtendimentoId))
             .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
+
+        return {
+            todosAtendimentos,
+            atendimentosRealizados: todosAtendimentos.filter((a) => a.status === 'Realizado'),
+            relatorios: relatoriosTransformados,
+        };
     },
 };

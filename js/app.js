@@ -221,6 +221,37 @@ function selectPatient(patientId) {
     updateCharCount();
     handleStatusChange(currentStatus);
     renderPatientList(document.getElementById('patient-search').value);
+
+    // Uma vez Realizado e já enviado, terapeuta não edita mais a evolução
+    // — só visualiza. Supervisor/Coordenador/Admin não são afetados por
+    // essa trava (a regra é especificamente sobre o perfil Terapeuta).
+    const session = AuthApi.getSession();
+    const bloqueado = patient.status === 'realizado' && session && session.perfilRole === 'Terapeuta';
+    setFormLocked(bloqueado);
+}
+
+// Desabilita todo o formulário de registro (radios, texto, selects,
+// botões de modelo/voz e salvar) — usado quando um Terapeuta abre um
+// atendimento que ele mesmo já concluiu e enviou.
+function setFormLocked(locked) {
+    document.getElementById('locked-banner').classList.toggle('hidden', !locked);
+
+    document.getElementsByName('attendance-status').forEach((r) => (r.disabled = locked));
+    document.getElementById('justification-text').disabled = locked;
+    document.getElementById('clinical-notes').disabled = locked;
+    document.getElementById('engagement-level').disabled = locked;
+    document.getElementById('next-steps').disabled = locked;
+    document.querySelectorAll('.template-btn').forEach((btn) => (btn.disabled = locked));
+    document.getElementById('mic-btn').disabled = locked;
+
+    const saveBtn = document.getElementById('save-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    saveBtn.disabled = locked;
+    resetBtn.disabled = locked;
+    saveBtn.classList.toggle('opacity-60', locked);
+    saveBtn.classList.toggle('cursor-not-allowed', locked);
+    resetBtn.classList.toggle('opacity-60', locked);
+    resetBtn.classList.toggle('cursor-not-allowed', locked);
 }
 
 function setRadioStatus(status) {
@@ -327,6 +358,15 @@ async function saveAttendance() {
 
     const patient = patients.find((p) => p.id === selectedPatientId);
     if (!patient) return;
+
+    // Segunda barreira além de desabilitar os campos na tela — mesmo que
+    // alguém force reativar um input pelo devtools, o salvamento em si
+    // recusa.
+    const session = AuthApi.getSession();
+    if (patient.status === 'realizado' && session && session.perfilRole === 'Terapeuta') {
+        showToast('Este atendimento já foi concluído — terapeutas não podem mais editar a evolução.', 'error');
+        return;
+    }
 
     const radios = document.getElementsByName('attendance-status');
     let selectedStatus = 'realizado';
