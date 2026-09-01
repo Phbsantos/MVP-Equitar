@@ -27,12 +27,15 @@
 
     <main class="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-8 py-6 space-y-6">
 
-        <div class="segmented max-w-sm">
+        <div class="segmented max-w-lg">
             <button id="tab-btn-paciente" onclick="switchCadastroTab('paciente')" class="segmented-btn active">
                 Novo Paciente
             </button>
             <button id="tab-btn-usuario" onclick="switchCadastroTab('usuario')" class="segmented-btn">
                 Novo Usuário
+            </button>
+            <button id="tab-btn-recorrencia" onclick="switchCadastroTab('recorrencia')" class="segmented-btn">
+                Nova Recorrência
             </button>
         </div>
 
@@ -156,6 +159,104 @@
                 </div>
             </form>
         </section>
+
+        <section id="tab-recorrencia" class="hidden space-y-4">
+            <div class="card p-6">
+                <h2 class="font-bold text-base mb-1 flex items-center gap-2" style="color:var(--ink)">
+                    <i data-lucide="repeat" class="w-5 h-5" style="color:var(--brand-600)"></i>
+                    Cadastrar Recorrência Semanal
+                </h2>
+                <p class="text-xs mb-4" style="color:var(--ink-soft)">
+                    Escolha paciente, terapeuta, dias da semana e horário — o sistema já cria os atendimentos
+                    correspondentes na agenda pelas próximas semanas. Clique num horário livre na grade pra
+                    pré-preencher o formulário.
+                </p>
+                <div class="flex items-start gap-2 p-3 rounded-xl text-xs mb-5" style="background:var(--warn-soft); color:var(--warn-ink)">
+                    <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                    <span>
+                        Por decisão atual, a recorrência e os atendimentos previstos por ela ficam guardados só
+                        nesta sessão do navegador — nada é enviado à agenda/Airtable ainda. Quando isso for
+                        ativado de verdade, é só trocar essa geração local pela chamada real ao endpoint.
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_22rem] gap-6">
+                    <div>
+                        <div class="flex items-center gap-3 mb-3 flex-wrap">
+                            <label class="form-label !mb-0" for="recorrencia-grade-terapeuta">Ver agenda de:</label>
+                            <select id="recorrencia-grade-terapeuta" class="form-input" style="width:auto;">
+                                <option value="">Todos os terapeutas</option>
+                            </select>
+                        </div>
+                        <div id="recorrencia-grade-container" class="border rounded-xl overflow-x-auto" style="border-color:var(--border)"></div>
+                        <div id="recorrencia-grade-legenda" class="flex items-center gap-4 mt-3 flex-wrap text-[11px]" style="color:var(--ink-soft)"></div>
+                    </div>
+
+                    <form id="form-recorrencia" onsubmit="handleRecorrenciaSubmit(event)" class="space-y-4">
+                        <div>
+                            <label class="form-label">Paciente <span class="text-rose-500">*</span></label>
+                            <input type="text" id="recorrencia-paciente" required placeholder="Carregando pacientes..." disabled class="form-input">
+                        </div>
+
+                        <div>
+                            <label class="form-label">Terapeuta <span class="text-rose-500">*</span></label>
+                            <input type="text" id="recorrencia-terapeuta" required placeholder="Carregando terapeutas..." disabled class="form-input">
+                        </div>
+
+                        <div>
+                            <label class="form-label">Dias da Semana <span class="text-rose-500">*</span></label>
+                            <div class="flex flex-wrap gap-2" id="recorrencia-dias-semana"></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="form-label">Horário <span class="text-rose-500">*</span></label>
+                                <input type="time" id="recorrencia-horario" required class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Duração (min) <span class="text-rose-500">*</span></label>
+                                <input type="number" id="recorrencia-duracao" required min="30" step="5" value="30" class="form-input">
+                                <p class="text-[11px] mt-1" style="color:var(--ink-faint)">Mínimo de 30 minutos por sessão.</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Semanas a gerar</label>
+                            <input type="number" id="recorrencia-semanas" min="1" max="26" value="8" class="form-input">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="form-label">Início <span class="text-rose-500">*</span></label>
+                                <input type="date" id="recorrencia-data-inicio" required class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Fim (opcional)</label>
+                                <input type="date" id="recorrencia-data-fim" class="form-input">
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex justify-end">
+                            <button type="submit" id="recorrencia-submit-btn" class="btn-primary">
+                                <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                                Salvar e Gerar Atendimentos
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card overflow-hidden">
+                <div class="p-4 border-b flex items-center justify-between flex-wrap gap-2" style="border-color:var(--border)">
+                    <h2 class="text-sm font-bold" style="color:var(--ink)">Recorrências cadastradas nesta sessão</h2>
+                    <span id="recorrencias-count-badge" class="badge badge--neutral">0 recorrência(s)</span>
+                </div>
+                <div id="recorrencias-lista"></div>
+                <div id="recorrencias-empty" class="p-8 text-center text-sm" style="color:var(--ink-faint)">
+                    Nenhuma recorrência cadastrada nesta sessão ainda.
+                </div>
+            </div>
+        </section>
     </main>
     </div>
     </div>
@@ -173,8 +274,10 @@
     </script>
 
     <script src="js/usuarios-api.js"></script>
+    <script src="js/pacientes-api.js"></script>
     <script src="js/autocomplete.js"></script>
     <script src="js/cadastro-api.js"></script>
     <script src="js/cadastros.js"></script>
+    <script src="js/recorrencia.js"></script>
 </body>
 </html>

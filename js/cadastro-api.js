@@ -88,4 +88,25 @@ const CadastroApi = {
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.RELATORIO_REGISTRAR}`;
         return this.postJson(url, payload);
     },
+
+    // /criar/atendimento — testado e funcionando (2026-08-26, ver
+    // SupervisorApi.agendarSessaoAvulsa). Centralizado aqui pra ser
+    // reaproveitado por qualquer tela que precise criar um atendimento real
+    // (ex: geração de atendimentos a partir de uma Recorrência em
+    // cadastros.html — a Recorrência em si ainda não tem tabela/endpoint
+    // próprio no n8n, mas os Atendimentos que ela gera são de verdade).
+    buildAtendimentoPayload(formData) {
+        return {
+            paciente_nome: formData.pacienteNome,
+            terapeuta_nome: formData.terapeutaNome,
+            data_hora: formData.dataHora,
+            supervisor_nome: formData.supervisorNome || '',
+            tipo_atendimento: formData.tipoAtendimento || 'Sessão Regular',
+        };
+    },
+
+    async criarAtendimento(payload) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.ATENDIMENTO_CRIAR}`;
+        return this.postJson(url, payload);
+    },
 };

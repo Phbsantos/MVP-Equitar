@@ -33,25 +33,16 @@ function showToast(message, type = 'info') {
 }
 
 function switchCadastroTab(tab) {
-    const btnPaciente = document.getElementById('tab-btn-paciente');
-    const btnUsuario = document.getElementById('tab-btn-usuario');
-    const tabPaciente = document.getElementById('tab-paciente');
-    const tabUsuario = document.getElementById('tab-usuario');
+    ['paciente', 'usuario', 'recorrencia'].forEach((t) => {
+        document.getElementById(`tab-btn-${t}`).className = t === tab ? 'segmented-btn active' : 'segmented-btn';
+        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+    });
 
-    const activeClass = 'segmented-btn active';
-    const inactiveClass = 'segmented-btn';
-
-    if (tab === 'paciente') {
-        btnPaciente.className = activeClass;
-        btnUsuario.className = inactiveClass;
-        tabPaciente.classList.remove('hidden');
-        tabUsuario.classList.add('hidden');
-    } else {
-        btnUsuario.className = activeClass;
-        btnPaciente.className = inactiveClass;
-        tabUsuario.classList.remove('hidden');
-        tabPaciente.classList.add('hidden');
-    }
+    // A grade semanal da aba Recorrência precisa de mais espaço horizontal
+    // do que os formulários simples das outras duas abas.
+    const main = document.querySelector('main');
+    main.classList.toggle('max-w-3xl', tab !== 'recorrencia');
+    main.classList.toggle('max-w-6xl', tab === 'recorrencia');
 }
 
 async function handlePacienteSubmit(event) {

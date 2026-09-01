@@ -566,3 +566,90 @@ body {
 
   .topbar-menu-btn { display: flex; }
 }
+
+/* ---------- Cadastro de Recorrência: chips de dia da semana + grade ---------- */
+
+.dia-semana-chip {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.dia-semana-chip:hover { background: var(--surface-alt); }
+.dia-semana-chip.active {
+  background: var(--brand-600);
+  border-color: var(--brand-600);
+  color: #fff;
+}
+
+.recorrencia-grade {
+  display: grid;
+  grid-template-columns: 3.25rem repeat(6, minmax(5.5rem, 1fr));
+  min-width: 40rem;
+}
+.recorrencia-grade-cell {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.recorrencia-grade-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  background: var(--surface-alt);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.recorrencia-grade-corner {
+  background: var(--surface-alt);
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 6;
+}
+.recorrencia-grade-hora {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 0.2rem 0.5rem 0 0;
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+  font-weight: 600;
+  background: var(--surface);
+  position: sticky;
+  left: 0;
+  z-index: 4;
+}
+.recorrencia-grade-slot {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.recorrencia-grade-slot:hover { background: var(--brand-50); }
+.recorrencia-grade-slot.drag-over { background: var(--brand-100); }
+.recorrencia-grade-bloco {
+  margin: 2px;
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.4rem;
+  color: #fff;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  overflow: hidden;
+  align-self: start;
+  cursor: grab;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  z-index: 2;
+}
+.recorrencia-grade-bloco:active { cursor: grabbing; }
+.recorrencia-grade-bloco.dragging { opacity: 0.4; }
