@@ -7,6 +7,31 @@ let isLoading = false;
 let isSaving = false;
 let modelosEvolucao = [];
 
+// Modelos padrão da clínica -- fixos, iguais pra todo mundo (não vivem no
+// banco). Extraídos aqui (em vez de um if/else dentro de insertTemplate)
+// pra servir de fonte única tanto pros botões quanto pra lista de
+// ocultar/restaurar no modal "Meus Modelos" (ver ocultarModeloPadrao).
+const DEFAULT_TEMPLATES = [
+    {
+        id: 'padrao',
+        nome: 'Geral',
+        conteudo:
+            'Sessão realizada com foco no plano terapêutico individualizado. Paciente apresentou bom engajamento e cumpriu as atividades propostas com auxílio moderado. Sinais vitais estáveis. Sem intercorrências.',
+    },
+    {
+        id: 'avd',
+        nome: 'AVDs',
+        conteudo:
+            'Treino de Atividades de Vida Diária (AVDs) focando em independência funcional. Trabalhada coordenação motora fina, preensão e alcance. Paciente demonstrou melhora na precisão dos movimentos.',
+    },
+    {
+        id: 'sensorial',
+        nome: 'Integ. Sensorial',
+        conteudo:
+            'Atendimento baseado na Integração Sensorial. Utilizados estímulos táteis e vestibulares controlados para regulação do estado de alerta. Paciente aceitou bem as transições de atividades.',
+    },
+];
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text ?? '';
@@ -366,28 +391,104 @@ function updateCharCount() {
 }
 
 function insertTemplate(type) {
+    const modelo = DEFAULT_TEMPLATES.find((m) => m.id === type);
+    if (!modelo) return;
+
     const textarea = document.getElementById('clinical-notes');
-    let templateText = '';
-
-    if (type === 'padrao') {
-        templateText =
-            'Sessão realizada com foco no plano terapêutico individualizado. Paciente apresentou bom engajamento e cumpriu as atividades propostas com auxílio moderado. Sinais vitais estáveis. Sem intercorrências.';
-    } else if (type === 'avd') {
-        templateText =
-            'Treino de Atividades de Vida Diária (AVDs) focando em independência funcional. Trabalhada coordenação motora fina, preensão e alcance. Paciente demonstrou melhora na precisão dos movimentos.';
-    } else if (type === 'sensorial') {
-        templateText =
-            'Atendimento baseado na Integração Sensorial. Utilizados estímulos táteis e vestibulares controlados para regulação do estado de alerta. Paciente aceitou bem as transições de atividades.';
-    }
-
     if (textarea.value.trim().length > 0) {
-        textarea.value += `\n\n${templateText}`;
+        textarea.value += `\n\n${modelo.conteudo}`;
     } else {
-        textarea.value = templateText;
+        textarea.value = modelo.conteudo;
     }
 
     updateCharCount();
     showToast('Modelo de texto inserido!');
+}
+
+// Ocultar/restaurar modelos padrão (2026-09-17): os 3 modelos da clínica
+// não vivem no banco (são fixos, iguais pra todo mundo), então "excluir"
+// aqui é por usuário e só no navegador dele -- localStorage, namespaced
+// por usuario_id, mesmo padrão já usado pro estado do sidebar. Não afeta
+// os outros usuários nem outros dispositivos do mesmo usuário.
+function getModelosPadraoStorageKey() {
+    const session = AuthApi.getSession();
+    return `equitar_modelos_padrao_ocultos_${(session && session.id) || 'anon'}`;
+}
+
+function getModelosPadraoOcultos() {
+    try {
+        const raw = localStorage.getItem(getModelosPadraoStorageKey());
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function setModelosPadraoOcultos(ids) {
+    try {
+        localStorage.setItem(getModelosPadraoStorageKey(), JSON.stringify(ids));
+    } catch (e) {
+        // localStorage indisponível (modo privado, etc.) -- só não persiste.
+    }
+}
+
+function ocultarModeloPadrao(id) {
+    const ocultos = getModelosPadraoOcultos();
+    if (!ocultos.includes(id)) {
+        ocultos.push(id);
+        setModelosPadraoOcultos(ocultos);
+    }
+    renderModelosPadraoBotoes();
+    renderModelosPadraoModalLista();
+    showToast('Modelo padrão ocultado. Você pode restaurar em "Meus Modelos".', 'info');
+}
+
+function restaurarModeloPadrao(id) {
+    setModelosPadraoOcultos(getModelosPadraoOcultos().filter((existente) => existente !== id));
+    renderModelosPadraoBotoes();
+    renderModelosPadraoModalLista();
+    showToast('Modelo padrão restaurado.', 'success');
+}
+
+function renderModelosPadraoBotoes() {
+    const container = document.getElementById('modelos-padrao-botoes');
+    if (!container) return;
+
+    const ocultos = getModelosPadraoOcultos();
+    container.innerHTML = DEFAULT_TEMPLATES.filter((m) => !ocultos.includes(m.id))
+        .map(
+            (m) => `
+        <button type="button" onclick="insertTemplate('${m.id}')" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ ${escapeHtml(m.nome)}</button>
+    `
+        )
+        .join('');
+}
+
+function renderModelosPadraoModalLista() {
+    const container = document.getElementById('modelos-padrao-modal-lista');
+    if (!container) return;
+
+    const ocultos = getModelosPadraoOcultos();
+    container.innerHTML = DEFAULT_TEMPLATES.map((m) => {
+        const oculto = ocultos.includes(m.id);
+        return `
+        <div class="flex items-start justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 ${oculto ? 'opacity-50' : ''}">
+            <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-800">${escapeHtml(m.nome)}${oculto ? ' <span class="font-normal" style="color:var(--ink-faint)">(oculto)</span>' : ''}</p>
+                <p class="text-[11px] text-slate-500 line-clamp-2">${escapeHtml(m.conteudo)}</p>
+            </div>
+            ${
+                oculto
+                    ? `<button type="button" onclick="restaurarModeloPadrao('${m.id}')" class="text-clinical-600 hover:text-clinical-700 shrink-0 text-[11px] font-semibold whitespace-nowrap" title="Restaurar">Restaurar</button>`
+                    : `<button type="button" onclick="ocultarModeloPadrao('${m.id}')" class="text-rose-500 hover:text-rose-700 shrink-0" title="Ocultar">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>`
+            }
+        </div>
+    `;
+    }).join('');
+
+    lucide.createIcons();
 }
 
 // Modelos de evolução PESSOAIS (2026-09-17) -- além dos 3 modelos fixos da
@@ -440,6 +541,7 @@ function insertModeloEvolucao(id) {
 }
 
 function openModelosEvolucaoModal() {
+    renderModelosPadraoModalLista();
     renderModelosEvolucaoModalLista();
     document.getElementById('modelos-evolucao-modal').classList.remove('hidden');
     lucide.createIcons();
@@ -990,6 +1092,7 @@ window.addEventListener('DOMContentLoaded', () => {
         loadSchedule(getSelectedDate(), { showSuccessToast: true });
     });
 
+    renderModelosPadraoBotoes();
     loadSchedule();
     loadModelosEvolucao();
     checkAtendimentosPendentesAnteriores();

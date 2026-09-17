@@ -187,9 +187,7 @@
 
                             <div class="flex items-center gap-1 flex-wrap">
                                 <span class="text-[11px] text-slate-400 font-medium mr-1 hidden sm:inline">Modelos:</span>
-                                <button type="button" onclick="insertTemplate('padrao')" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ Geral</button>
-                                <button type="button" onclick="insertTemplate('avd')" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ AVDs</button>
-                                <button type="button" onclick="insertTemplate('sensorial')" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ Integ. Sensorial</button>
+                                <div id="modelos-padrao-botoes" class="flex items-center gap-1 flex-wrap"></div>
                                 <div id="modelos-evolucao-botoes" class="flex items-center gap-1 flex-wrap"></div>
                                 <button type="button" onclick="openModelosEvolucaoModal()" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition inline-flex items-center gap-1" title="Meus modelos de evolução pessoais">
                                     <i data-lucide="settings" class="w-3 h-3"></i>
@@ -363,8 +361,16 @@
             </div>
 
             <div class="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
-                <div id="modelos-evolucao-modal-lista" class="space-y-2"></div>
-                <p id="modelos-evolucao-modal-empty" class="text-xs hidden" style="color:var(--ink-faint)">Você ainda não tem modelos pessoais cadastrados.</p>
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color:var(--ink-faint)">Modelos padrão da clínica</p>
+                    <div id="modelos-padrao-modal-lista" class="space-y-2"></div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100">
+                    <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color:var(--ink-faint)">Meus modelos pessoais</p>
+                    <div id="modelos-evolucao-modal-lista" class="space-y-2"></div>
+                    <p id="modelos-evolucao-modal-empty" class="text-xs hidden" style="color:var(--ink-faint)">Você ainda não tem modelos pessoais cadastrados.</p>
+                </div>
 
                 <form id="form-novo-modelo-evolucao" onsubmit="handleNovoModeloEvolucaoSubmit(event)" class="space-y-2 pt-3 border-t border-slate-100">
                     <div>
