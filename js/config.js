@@ -2,14 +2,14 @@ const CONFIG = {
     TERAPEUTA: 'Dr. João Silva',
     TERAPEUTA_CREFITO: 'CREFITO-3/12345-TO',
     SUPERVISOR_NOME: 'Dr. João Silva',
-    // 2026-09-08: backend saiu do n8n cloud + Airtable e passou a rodar
-    // 100% local — n8n self-hosted em Docker (container n8n_app) falando
-    // com Postgres local (container postgres_n8n, banco equitar_db), ver
-    // db/n8n-workflows/ (schema em db/migrations/). Os paths de cada
-    // endpoint não mudaram (o path do webhook é o mesmo em cada workflow
-    // novo) — só a base. Nenhuma versão n8n cloud (phbsantos/phbsantos1/
-    // phbsantos2) deve mais ser usada.
-    API_BASE: 'http://localhost:5678/webhook',
+    // 2026-09-16: backend saiu da máquina local de desenvolvimento e foi
+    // pra uma VPS (Ubuntu 24.04) — mesma arquitetura (n8n self-hosted em
+    // Docker + Postgres, ver db/n8n-workflows/ e db/migrations/), só que
+    // agora acessível pelo IP público da VPS em vez de localhost. Ainda
+    // sem domínio/TLS (decisão consciente por ora) — tráfego é HTTP puro,
+    // não HTTPS. Nenhuma versão anterior (n8n cloud phbsantos*, ou o
+    // localhost:5678 da máquina de dev) deve mais ser usada.
+    API_BASE: 'http://38.72.132.152:5678/webhook',
     ENDPOINTS: {
         // --- Listagem (GET) ---
         LISTAR_USUARIOS: '/listar/usuarios',
