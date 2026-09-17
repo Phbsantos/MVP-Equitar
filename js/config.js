@@ -4,12 +4,17 @@ const CONFIG = {
     SUPERVISOR_NOME: 'Dr. João Silva',
     // 2026-09-16: backend saiu da máquina local de desenvolvimento e foi
     // pra uma VPS (Ubuntu 24.04) — mesma arquitetura (n8n self-hosted em
-    // Docker + Postgres, ver db/n8n-workflows/ e db/migrations/), só que
-    // agora acessível pelo IP público da VPS em vez de localhost. Ainda
-    // sem domínio/TLS (decisão consciente por ora) — tráfego é HTTP puro,
-    // não HTTPS. Nenhuma versão anterior (n8n cloud phbsantos*, ou o
-    // localhost:5678 da máquina de dev) deve mais ser usada.
-    API_BASE: 'http://38.72.132.152:5678/webhook',
+    // Docker + Postgres, ver db/n8n-workflows/ e db/migrations/). Rodou
+    // primeiro só em HTTP puro por IP; no mesmo dia ganhou HTTPS de
+    // verdade via Caddy (reverse proxy com TLS automático) na frente do
+    // n8n, usando o hostname público sslip.io (resolve pro IP da VPS sem
+    // precisar de domínio próprio) — certificado real do Let's Encrypt,
+    // emitido e renovado automaticamente pelo Caddy. n8n não escuta mais
+    // direto na porta pública (só via Caddy/443, porta 5678 fechada no
+    // firewall e vinculada só a 127.0.0.1 no docker-compose). Nenhuma
+    // versão anterior (n8n cloud phbsantos*, localhost:5678 de dev, ou o
+    // http://IP:5678 sem TLS) deve mais ser usada.
+    API_BASE: 'https://38-72-132-152.sslip.io/webhook',
     ENDPOINTS: {
         // --- Listagem (GET) ---
         LISTAR_USUARIOS: '/listar/usuarios',
