@@ -1,7 +1,4 @@
 const CONFIG = {
-    TERAPEUTA: 'Dr. João Silva',
-    TERAPEUTA_CREFITO: 'CREFITO-3/12345-TO',
-    SUPERVISOR_NOME: 'Dr. João Silva',
     // 2026-09-17: escondidas temporariamente pra apresentação ao cliente —
     // features completas no backend, só desligadas na UI. Voltar pra true
     // reativa sem precisar tocar em nada além daqui.

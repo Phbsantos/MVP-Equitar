@@ -51,7 +51,7 @@ const SupervisorApi = {
             paciente: record.paciente_nome || 'Paciente não informado',
             terapeuta: record.terapeuta_nome || 'Terapeuta não informado',
             terapeutaId: record.terapeuta_id,
-            supervisor: record.supervisor_nome || CONFIG.SUPERVISOR_NOME,
+            supervisor: record.supervisor_nome || 'Supervisor não informado',
             especialidade: record.especialidade || 'Multiprofissional',
             horario: this.formatTimeRange(record.data_hora),
             hora: this.formatTimeBrasilia(record.data_hora),
@@ -151,7 +151,7 @@ const SupervisorApi = {
             paciente_nome: formData.paciente,
             terapeuta_nome: formData.terapeuta,
             data_hora: `${formData.data}T${formData.hora}:00-03:00`,
-            supervisor_nome: (session && session.nome) || CONFIG.SUPERVISOR_NOME,
+            supervisor_nome: (session && session.nome) || '',
             tipo_atendimento: formData.tipo || 'Sessão Extra/Reforço',
         };
     },

@@ -318,7 +318,7 @@ const ApiService = {
             tipo: 'Evolução',
             paciente_nome: patient.name,
             atendimento_id: patient.id,
-            autor_nome: (session && session.nome) || CONFIG.TERAPEUTA,
+            autor_nome: session && session.nome,
             data: (patient.dataHora || '').slice(0, 10),
             conteudo: isRealizado ? formData.notes || '' : `Justificativa: ${formData.justification || ''}`,
             editado_por_nome: null,
