@@ -37,6 +37,19 @@ function formatDate(isoDate) {
     return new Date(isoDate).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
+// relatorio.data é uma coluna DATE pura (sem horário) -- "2026-09-20", sem
+// "T"/timezone nenhum. new Date("2026-09-20") interpreta isso como meia-
+// noite UTC, e converter esse instante pra America/Sao_Paulo (UTC-3) cai
+// no dia anterior às 21h -- exibia (e exportava em PDF/Word) um dia a
+// menos do que o realmente salvo. Formata direto a string, sem passar por
+// Date/timezone nenhum -- não existe "hora" aqui pra converter.
+function formatDateOnly(value) {
+    if (!value) return '--';
+    const [year, month, day] = String(value).slice(0, 10).split('-');
+    if (!year || !month || !day) return '--';
+    return `${day}/${month}/${year}`;
+}
+
 function formatTime(isoDate) {
     if (!isoDate) return '--:--';
     return new Date(isoDate).toLocaleTimeString('pt-BR', {
@@ -278,7 +291,7 @@ function renderRelatorioCard(relatorio) {
                     <div>
                         <h3 class="text-base font-bold" style="color:var(--ink)">${escapeHtml(relatorio.pacienteNome)}</h3>
                         <p class="text-xs mt-0.5" style="color:var(--ink-soft)">
-                            ${formatDate(relatorio.data)} · ${escapeHtml(relatorio.autorNome)}${relatorio.planoSaude ? ` · ${escapeHtml(relatorio.planoSaude)}` : ''}
+                            ${formatDateOnly(relatorio.data)} · ${escapeHtml(relatorio.autorNome)}${relatorio.planoSaude ? ` · ${escapeHtml(relatorio.planoSaude)}` : ''}
                         </p>
                     </div>
                 </div>
@@ -387,7 +400,7 @@ function buildEvolucaoDocumentHtml(relatorios) {
         .map(
             (r) => `
                 <div style="margin-bottom:18px;">
-                    <p style="margin:0 0 4px 0; font-weight:bold;">${escapeHtml(formatDate(r.data))}</p>
+                    <p style="margin:0 0 4px 0; font-weight:bold;">${escapeHtml(formatDateOnly(r.data))}</p>
                     <p style="margin:0; white-space:pre-wrap;">${escapeHtml(r.conteudo) || 'Sem conteúdo registrado.'}</p>
                 </div>
             `
