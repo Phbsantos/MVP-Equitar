@@ -399,8 +399,13 @@ async function loadModelosEvolucao() {
     try {
         modelosEvolucao = await ApiService.fetchModelosEvolucao();
     } catch (error) {
+        // Erro de verdade (endpoint fora do ar, 500, etc.) é diferente de
+        // "usuário não tem modelos ainda" -- avisa, em vez de deixar a UI
+        // mostrar silenciosamente "nenhum modelo cadastrado" como se fosse
+        // uma resposta válida.
         console.error(error);
         modelosEvolucao = [];
+        showToast('Não foi possível carregar seus modelos de evolução pessoais.', 'error');
     }
     renderModelosEvolucaoBotoes();
     renderModelosEvolucaoModalLista();
