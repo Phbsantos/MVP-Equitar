@@ -99,6 +99,11 @@ const CONFIG = {
         MODELO_EVOLUCAO_REGISTRAR: '/registrar/modelo-evolucao',
         // DELETE, não POST -- remove um modelo por id (?id=).
         MODELO_EVOLUCAO_REMOVER: '/remover/modelo-evolucao',
+        // 2026-09-17: corrige o Status_Presenca de um atendimento direto,
+        // sem depender de relatório vinculado -- usado pra reabrir (voltar
+        // pra "Agendado") um atendimento "Realizado sem evolução" na aba
+        // Indicadores.
+        ATENDIMENTO_STATUS_ATUALIZAR: '/atualizar/status-atendimento',
 
         // 2026-09-08: resposta de sucesso agora vem completa em
         // {sucesso, mensagem, usuario:{id, nome, email, perfilRole,

@@ -1,0 +1,93 @@
+{
+  "id": "eqtr26AtualizarStatusAtendimento",
+  "name": "Equitar - POST /atualizar/status-atendimento",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0026-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "atualizar/status-atendimento",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_atualizar",
+      "name": "Atualizar Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Corrige o Status_Presenca de um atendimento direto, sem passar por\n-- relatório nenhum (2026-09-17) -- usado pelo Coordenador na aba\n-- Indicadores pra reabrir um atendimento \"Realizado sem evolução\" de\n-- volta pra \"Agendado\", quando o terapeuta marcou a sessão como feita\n-- sem nunca escrever a evolução. Diferente de /editar/relatorio (que só\n-- funciona quando já existe um relatório vinculado pra editar).\n-- CTE + SELECT final garante sempre 1 linha de volta (mesmo se o id não\n-- existir), pra responder 404 limpo em vez de deixar o fluxo morrer com\n-- 0 itens.\nWITH upd AS (\n  UPDATE atendimentos SET\n    status_presenca = $2::status_presenca\n  WHERE id = $1::int\n  RETURNING id, status_presenca::text AS status_presenca\n)\nSELECT\n  (SELECT id FROM upd) IS NOT NULL AS encontrado,\n  (SELECT id FROM upd) AS id,\n  (SELECT status_presenca FROM upd) AS status_presenca",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.id, $json.body.status_presenca ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "if_encontrado",
+      "name": "Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [520, 300],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.encontrado }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 }
+        }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Status do atendimento atualizado com sucesso.\", atendimento: { id: $json.id, statusPresenca: $json.status_presenca } } }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond_nao_encontrado",
+      "name": "Responder Nao Encontrado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 420],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: false, mensagem: \"Atendimento não encontrado.\" } }}",
+        "options": { "responseCode": 404 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Atualizar Status", "type": "main", "index": 0 }]] },
+    "Atualizar Status": { "main": [[{ "node": "Encontrado?", "type": "main", "index": 0 }]] },
+    "Encontrado?": {
+      "main": [
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }],
+        [{ "node": "Responder Nao Encontrado", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

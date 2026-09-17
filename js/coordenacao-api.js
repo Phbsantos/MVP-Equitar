@@ -84,6 +84,27 @@ const CoordenacaoApi = {
         return response.json();
     },
 
+    // Reabre um atendimento "Realizado sem evolução" de volta pra
+    // "Agendado" (2026-09-17, aba Indicadores) -- corrige o
+    // Status_Presenca direto no atendimento, sem depender de nenhum
+    // relatório vinculado (diferente de editarRelatorio, que só funciona
+    // quando já existe relatório pra editar).
+    async atualizarStatusAtendimento(id, statusPresenca) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.ATENDIMENTO_STATUS_ATUALIZAR}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status_presenca: statusPresenca }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(errorText || `Erro ao atualizar status (${response.status})`);
+        }
+
+        return response.json();
+    },
+
     // Transforma um Atendimento cru, mantendo o Status_Presenca original —
     // usado pela aba Indicadores, que precisa enxergar Falta/Desmarcado/
     // Cancelado/Agendado além de Realizado (fetchAtendimentosComContexto

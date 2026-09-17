@@ -71,7 +71,6 @@ function toDateInputValue(value) {
 // re-render, sem round-trip novo à API.
 // -----------------------------------------------------------------------
 let allAtendimentos = [];
-let allAtendimentosTodos = []; // todos os status — usado só pela aba Indicadores
 let allRelatorios = [];
 let selectedRelatorioIds = new Set();
 let editingRelatorioId = null;
@@ -95,12 +94,10 @@ function findRelatorioById(id) {
 // Abas
 // -----------------------------------------------------------------------
 function switchCoordenacaoTab(tab) {
-    ['atendimentos', 'relatorios', 'indicadores'].forEach((t) => {
+    ['atendimentos', 'relatorios'].forEach((t) => {
         document.getElementById(`tab-btn-${t}`).className = t === tab ? 'segmented-btn active' : 'segmented-btn';
         document.getElementById(`tab-panel-${t}`).classList.toggle('hidden', t !== tab);
     });
-
-    if (tab === 'indicadores') renderIndicadores();
 }
 
 // -----------------------------------------------------------------------
@@ -636,16 +633,14 @@ async function loadCoordenacaoDados() {
     errorState.classList.add('hidden');
 
     try {
-        const { todosAtendimentos, atendimentosRealizados, relatorios } = await CoordenacaoApi.fetchAtendimentosComContexto();
+        const { atendimentosRealizados, relatorios } = await CoordenacaoApi.fetchAtendimentosComContexto();
 
         allAtendimentos = atendimentosRealizados;
-        allAtendimentosTodos = todosAtendimentos;
         allRelatorios = relatorios;
         selectedRelatorioIds.clear();
 
         populateAtendimentoFilterOptions();
         populateRelatorioFilterOptions();
-        populateIndicadorFilterOptions();
         if (pacienteAutocompleteFiltroAtendimento) {
             pacienteAutocompleteFiltroAtendimento.setOptions(
                 [...new Map(allAtendimentos.map((a) => [a.pacienteNome, a])).values()].map((a) => ({
@@ -655,18 +650,8 @@ async function loadCoordenacaoDados() {
                 }))
             );
         }
-        if (pacienteAutocompleteFiltroIndicador) {
-            pacienteAutocompleteFiltroIndicador.setOptions(
-                [...new Map(allAtendimentosTodos.map((a) => [a.pacienteNome, a])).values()].map((a) => ({
-                    id: a.pacienteNome,
-                    label: a.pacienteNome,
-                    sublabel: a.planoSaude || '',
-                }))
-            );
-        }
         renderAtendimentosTab();
         renderRelatoriosTab();
-        renderIndicadores();
 
         loading.classList.add('hidden');
         content.classList.remove('hidden');
@@ -680,262 +665,6 @@ async function loadCoordenacaoDados() {
     } finally {
         lucide.createIcons();
     }
-}
-
-// -----------------------------------------------------------------------
-// Aba Indicadores — 100% client-side, montada em cima dos mesmos
-// Atendimentos/Relatórios já carregados (allAtendimentosTodos inclui TODOS
-// os status, diferente de allAtendimentos que só tem Realizado). Não
-// depende do endpoint /coordenacao/metricas (nunca teve URL confirmada).
-//
-// 2026-09-08: o bug do n8n/Airtable que gravava Falta/Desmarcado/Cancelado
-// sempre como "Realizado" foi corrigido no backend novo (n8n local +
-// Postgres, ver db/n8n-workflows/09_registrar_relatorio.json) — os
-// indicadores abaixo não sofrem mais dessa subestimação.
-// -----------------------------------------------------------------------
-function isFalta(status) {
-    return status === 'Falta sem Aviso';
-}
-function isDesmarcado(status) {
-    return typeof status === 'string' && status.includes('Desmarcado');
-}
-function isCancelado(status) {
-    return typeof status === 'string' && status.includes('Cancelado');
-}
-
-function populateIndicadorFilterOptions() {
-    const terapeutaSelect = document.getElementById('filter-indicador-terapeuta');
-    const terapeutas = [...new Set(allAtendimentosTodos.map((a) => a.terapeutaNome).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, 'pt-BR')
-    );
-
-    const valorAtual = terapeutaSelect.value;
-    terapeutaSelect.innerHTML =
-        '<option value="">Todos os terapeutas</option>' +
-        terapeutas.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-    if (terapeutas.includes(valorAtual)) terapeutaSelect.value = valorAtual;
-}
-
-function getIndicadorFilters() {
-    return {
-        paciente: document.getElementById('filter-indicador-paciente').value.trim().toLowerCase(),
-        terapeuta: document.getElementById('filter-indicador-terapeuta').value,
-        dataInicio: document.getElementById('filter-indicador-data-inicio').value,
-        dataFim: document.getElementById('filter-indicador-data-fim').value,
-    };
-}
-
-function applyIndicadorFilters(atendimentos, filters) {
-    return atendimentos.filter((a) => {
-        if (filters.paciente && !a.pacienteNome.toLowerCase().includes(filters.paciente)) return false;
-        if (filters.terapeuta && a.terapeutaNome !== filters.terapeuta) return false;
-        if (a.dataHora) {
-            const data = new Date(a.dataHora);
-            if (filters.dataInicio && data < new Date(filters.dataInicio)) return false;
-            if (filters.dataFim && data > new Date(`${filters.dataFim}T23:59:59`)) return false;
-        }
-        return true;
-    });
-}
-
-function clearIndicadorFilters() {
-    document.getElementById('filterFormIndicadores').reset();
-    if (pacienteAutocompleteFiltroIndicador) pacienteAutocompleteFiltroIndicador.clear();
-    renderIndicadores();
-}
-
-function computeIndicadoresResumo(atendimentos) {
-    const realizados = atendimentos.filter((a) => a.status === 'Realizado');
-    const comEvolucao = realizados.filter((a) => a.relatorio);
-    const semEvolucao = realizados.filter((a) => !a.relatorio);
-    const faltas = atendimentos.filter((a) => isFalta(a.status));
-    const desmarcados = atendimentos.filter((a) => isDesmarcado(a.status));
-    const cancelados = atendimentos.filter((a) => isCancelado(a.status));
-
-    const baseAssiduidade = realizados.length + faltas.length + desmarcados.length + cancelados.length;
-    const taxaAssiduidade = baseAssiduidade > 0 ? Math.round((realizados.length / baseAssiduidade) * 100) : 0;
-
-    return {
-        total: atendimentos.length,
-        realizados,
-        comEvolucao,
-        semEvolucao,
-        faltas,
-        desmarcados,
-        cancelados,
-        taxaAssiduidade,
-    };
-}
-
-function renderIndicadoresKpis(resumo) {
-    const root = document.getElementById('indicadores-kpis-root');
-    root.innerHTML = [
-        UI.statCard({ id: 'ind-kpi-total', label: 'Total no filtro', icon: 'calendar-days', initialValue: resumo.total, accent: true }),
-        UI.statCard({ id: 'ind-kpi-realizados', label: 'Realizados', icon: 'check-circle-2', initialValue: resumo.realizados.length }),
-        UI.statCard({ id: 'ind-kpi-com-evolucao', label: 'Com evolução', icon: 'file-check-2', initialValue: resumo.comEvolucao.length }),
-        UI.statCard({ id: 'ind-kpi-sem-evolucao', label: 'Sem evolução', icon: 'file-warning', initialValue: resumo.semEvolucao.length }),
-        UI.statCard({ id: 'ind-kpi-faltas', label: 'Faltas s/ aviso', icon: 'user-x', initialValue: resumo.faltas.length }),
-        UI.statCard({ id: 'ind-kpi-desmarcados', label: 'Desmarcados', icon: 'calendar-x', initialValue: resumo.desmarcados.length }),
-        UI.statCard({ id: 'ind-kpi-cancelados', label: 'Cancelados', icon: 'ban', initialValue: resumo.cancelados.length }),
-        UI.statCard({ id: 'ind-kpi-assiduidade', label: 'Taxa de assiduidade', icon: 'trending-up', initialValue: `${resumo.taxaAssiduidade}%` }),
-    ].join('');
-    lucide.createIcons();
-}
-
-function renderIndicadoresSemEvolucao(semEvolucaoList) {
-    const container = document.getElementById('indicadores-sem-evolucao-container');
-    const empty = document.getElementById('indicadores-sem-evolucao-empty');
-    const badge = document.getElementById('indicadores-sem-evolucao-badge');
-
-    badge.innerText = `${semEvolucaoList.length} caso(s)`;
-
-    if (semEvolucaoList.length === 0) {
-        container.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-    }
-
-    empty.classList.add('hidden');
-    container.innerHTML = semEvolucaoList
-        .map(
-            (a) => `
-        <div class="p-4 flex items-center justify-between gap-3 flex-wrap">
-            <div>
-                <p class="text-sm font-semibold" style="color:var(--ink)">${escapeHtml(a.pacienteNome)}</p>
-                <p class="text-xs mt-0.5" style="color:var(--ink-soft)">
-                    ${formatDate(a.dataHora)} às ${formatTime(a.dataHora)} · ${escapeHtml(a.terapeutaNome)}
-                </p>
-            </div>
-            <span class="badge badge--warn">Sem evolução</span>
-        </div>
-    `
-        )
-        .join('');
-}
-
-function renderIndicadoresPorTerapeuta(atendimentos) {
-    const tbody = document.getElementById('indicadores-terapeuta-tbody');
-    const empty = document.getElementById('indicadores-terapeuta-empty');
-
-    const porTerapeuta = new Map();
-    atendimentos
-        .filter((a) => a.status === 'Realizado')
-        .forEach((a) => {
-            if (!porTerapeuta.has(a.terapeutaNome)) {
-                porTerapeuta.set(a.terapeutaNome, { terapeuta: a.terapeutaNome, realizados: 0, comEvolucao: 0, semEvolucao: 0 });
-            }
-            const linha = porTerapeuta.get(a.terapeutaNome);
-            linha.realizados += 1;
-            if (a.relatorio) linha.comEvolucao += 1;
-            else linha.semEvolucao += 1;
-        });
-
-    const linhas = [...porTerapeuta.values()].sort(
-        (a, b) => b.semEvolucao - a.semEvolucao || a.terapeuta.localeCompare(b.terapeuta, 'pt-BR')
-    );
-
-    if (linhas.length === 0) {
-        tbody.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-    }
-
-    empty.classList.add('hidden');
-    tbody.innerHTML = linhas
-        .map(
-            (l) => `
-        <tr class="border-t" style="border-color:var(--border)">
-            <td class="px-4 py-3 font-semibold" style="color:var(--ink)">${escapeHtml(l.terapeuta)}</td>
-            <td class="px-4 py-3 text-center">${l.realizados}</td>
-            <td class="px-4 py-3 text-center"><span class="badge badge--ok">${l.comEvolucao}</span></td>
-            <td class="px-4 py-3 text-center">${
-                l.semEvolucao > 0 ? `<span class="badge badge--warn">${l.semEvolucao}</span>` : '0'
-            }</td>
-        </tr>
-    `
-        )
-        .join('');
-}
-
-// Conta faltas/desmarcações/cancelamentos consecutivos mais recentes de um
-// paciente, olhando o HISTÓRICO COMPLETO (não o filtro atual aplicado na
-// tela) — um alerta de risco não deveria sumir só porque o filtro de data
-// mudou.
-function computeFaltasConsecutivas(pacienteNome) {
-    const historico = allAtendimentosTodos
-        .filter((a) => a.pacienteNome === pacienteNome && a.status !== 'Agendado')
-        .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
-
-    let consecutivas = 0;
-    for (const a of historico) {
-        if (a.status === 'Realizado') break;
-        consecutivas += 1;
-    }
-    return consecutivas;
-}
-
-function renderIndicadoresPorPaciente(atendimentos) {
-    const tbody = document.getElementById('indicadores-paciente-tbody');
-    const empty = document.getElementById('indicadores-paciente-empty');
-
-    const porPaciente = new Map();
-    atendimentos.forEach((a) => {
-        if (!porPaciente.has(a.pacienteNome)) {
-            porPaciente.set(a.pacienteNome, { paciente: a.pacienteNome, realizados: 0, faltas: 0, desmarcados: 0, cancelados: 0 });
-        }
-        const linha = porPaciente.get(a.pacienteNome);
-        if (a.status === 'Realizado') linha.realizados += 1;
-        else if (isFalta(a.status)) linha.faltas += 1;
-        else if (isDesmarcado(a.status)) linha.desmarcados += 1;
-        else if (isCancelado(a.status)) linha.cancelados += 1;
-    });
-
-    const linhas = [...porPaciente.values()]
-        .map((l) => ({ ...l, faltasConsecutivas: computeFaltasConsecutivas(l.paciente) }))
-        .sort(
-            (a, b) =>
-                b.faltas + b.desmarcados + b.cancelados - (a.faltas + a.desmarcados + a.cancelados) ||
-                a.paciente.localeCompare(b.paciente, 'pt-BR')
-        );
-
-    if (linhas.length === 0) {
-        tbody.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-    }
-
-    empty.classList.add('hidden');
-    tbody.innerHTML = linhas
-        .map(
-            (l) => `
-        <tr class="border-t" style="border-color:var(--border)">
-            <td class="px-4 py-3 font-semibold" style="color:var(--ink)">${escapeHtml(l.paciente)}</td>
-            <td class="px-4 py-3 text-center">${l.realizados}</td>
-            <td class="px-4 py-3 text-center">${l.faltas > 0 ? `<span class="badge badge--danger">${l.faltas}</span>` : '0'}</td>
-            <td class="px-4 py-3 text-center">${
-                l.desmarcados > 0 ? `<span class="badge badge--warn">${l.desmarcados}</span>` : '0'
-            }</td>
-            <td class="px-4 py-3 text-center">${l.cancelados}</td>
-            <td class="px-4 py-3">${
-                l.faltasConsecutivas >= 2
-                    ? `<span class="badge badge--danger">${l.faltasConsecutivas} faltas seguidas</span>`
-                    : '<span style="color:var(--ink-faint)">—</span>'
-            }</td>
-        </tr>
-    `
-        )
-        .join('');
-}
-
-function renderIndicadores() {
-    const filters = getIndicadorFilters();
-    const filtered = applyIndicadorFilters(allAtendimentosTodos, filters);
-    const resumo = computeIndicadoresResumo(filtered);
-
-    renderIndicadoresKpis(resumo);
-    renderIndicadoresSemEvolucao(resumo.semEvolucao);
-    renderIndicadoresPorTerapeuta(filtered);
-    renderIndicadoresPorPaciente(filtered);
 }
 
 // -----------------------------------------------------------------------
@@ -1143,9 +872,8 @@ async function handleAtendimentoAvulsoSubmit(event) {
         showToast(`Atendimento avulso agendado para ${pacienteNome}!`, 'success');
         closeAtendimentoAvulsoModal();
         document.getElementById('form-atendimento-avulso').reset();
-        // Recarrega tudo da base pra já refletir o novo atendimento nas
-        // outras abas (Atendimentos/Indicadores), igual já fazemos após
-        // criar um relatório avulso.
+        // Recarrega tudo da base pra já refletir o novo atendimento na
+        // aba Atendimentos, igual já fazemos após criar um relatório avulso.
         await loadCoordenacaoDados();
     } catch (error) {
         console.error(error);
@@ -1158,7 +886,6 @@ async function handleAtendimentoAvulsoSubmit(event) {
 }
 
 let pacienteAutocompleteFiltroAtendimento = null;
-let pacienteAutocompleteFiltroIndicador = null;
 
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
@@ -1171,10 +898,6 @@ window.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         renderAtendimentosTab();
     });
-    document.getElementById('filterFormIndicadores')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        renderIndicadores();
-    });
 
     pacienteAutocompleteRelatorio = attachAutocomplete(document.getElementById('novo-relatorio-paciente'), { options: [] });
     pacienteAutocompleteFiltro = attachAutocomplete(document.getElementById('filter-relatorio-paciente'), {
@@ -1185,10 +908,6 @@ window.addEventListener('DOMContentLoaded', () => {
         options: [],
         onSelect: () => renderAtendimentosTab(),
     });
-    pacienteAutocompleteFiltroIndicador = attachAutocomplete(document.getElementById('filter-indicador-paciente'), {
-        options: [],
-        onSelect: () => renderIndicadores(),
-    });
     loadPacientesParaNovoRelatorio();
 
     pacienteAutocompleteAtendimentoAvulso = attachAutocomplete(document.getElementById('atendimento-avulso-paciente'), { options: [] });
@@ -1197,7 +916,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Permite linkar direto pra uma aba, ex: coordenacao.html?tab=relatorios
     const tabParam = new URLSearchParams(window.location.search).get('tab');
-    if (['atendimentos', 'relatorios', 'indicadores'].includes(tabParam)) {
+    if (['atendimentos', 'relatorios'].includes(tabParam)) {
         switchCoordenacaoTab(tabParam);
     }
 

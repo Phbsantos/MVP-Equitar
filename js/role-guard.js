@@ -12,8 +12,15 @@
     const ROLE_PAGES = {
         Terapeuta: ['index.html'],
         Supervisor: ['index.html', 'supervisor.html'],
-        Coordenador: ['coordenacao.html', 'cadastros.html'],
-        Admin: ['coordenacao.html', 'cadastros.html', 'relatorios.html', 'supervisor.html'],
+        // 2026-09-17: Indicadores virou página própria (era uma aba dentro de
+        // coordenacao.html) e é a tela principal do Coordenador agora — fica
+        // primeiro na lista dele, já que allowed[0] é usado tanto pro
+        // redirect de página inválida quanto (separadamente, em
+        // js/login.js) pro landing pós-login. Admin continua landing em
+        // coordenacao.html (só ganhou acesso a Indicadores, sem virar a
+        // home dele) — por isso a ordem não muda pro Admin.
+        Coordenador: ['indicadores.html', 'coordenacao.html', 'cadastros.html'],
+        Admin: ['coordenacao.html', 'cadastros.html', 'relatorios.html', 'supervisor.html', 'indicadores.html'],
     };
 
     const allowed = ROLE_PAGES[session.perfilRole];

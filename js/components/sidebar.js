@@ -25,6 +25,7 @@ const Sidebar = {
         { href: 'index.html', label: 'Minha Agenda', icon: 'calendar-check' },
         { href: 'relatorios.html', label: 'Relatórios', icon: 'file-text' },
         { href: 'supervisor.html', label: 'Supervisor', icon: 'users' },
+        { href: 'indicadores.html', label: 'Indicadores', icon: 'bar-chart-3' },
         { href: 'coordenacao.html', label: 'Coordenação', icon: 'layout-dashboard' },
         { href: 'cadastros.html', label: 'Cadastros', icon: 'user-plus' },
     ],

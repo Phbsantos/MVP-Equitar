@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indicadores · Equitar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="js/config.js"></script>
+    <script src="js/auth-api.js"></script>
+    <script src="js/auth-guard.js"></script>
+    <script src="js/role-guard.js"></script>
+
+    <script src="js/components/theme.js"></script>
+    <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col selection:bg-clinical-100 selection:text-clinical-800">
+
+    <div class="app-shell">
+    <aside id="sidebar-root"></aside>
+    <div class="app-main">
+    <header id="topbar-root"></header>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-4 sm:py-6 space-y-6">
+
+        <div id="indicadores-loading" class="card p-10 text-center">
+            <div class="flex flex-col items-center gap-3" style="color:var(--ink-soft)">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin" style="color:var(--brand-600)"></i>
+                <p class="text-sm font-medium">Carregando indicadores...</p>
+            </div>
+        </div>
+
+        <div id="indicadores-error" class="hidden card p-8 text-center">
+            <p id="indicadores-error-message" class="text-sm font-medium" style="color:var(--ink-soft)">Não foi possível carregar os dados.</p>
+        </div>
+
+        <div id="indicadores-content" class="hidden space-y-4">
+            <section class="card p-5">
+                <h2 class="text-xs font-bold uppercase tracking-wider mb-4" style="color:var(--ink-faint)">Filtros</h2>
+                <form id="filterFormIndicadores" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                    <div>
+                        <label for="filter-indicador-paciente" class="form-label">Paciente</label>
+                        <input type="text" id="filter-indicador-paciente" placeholder="Nome do paciente..." class="form-input">
+                    </div>
+                    <div>
+                        <label for="filter-indicador-terapeuta" class="form-label">Terapeuta</label>
+                        <select id="filter-indicador-terapeuta" class="form-input">
+                            <option value="">Todos os terapeutas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filter-indicador-data-inicio" class="form-label">De</label>
+                        <input type="date" id="filter-indicador-data-inicio" class="form-input">
+                    </div>
+                    <div>
+                        <label for="filter-indicador-data-fim" class="form-label">Até</label>
+                        <input type="date" id="filter-indicador-data-fim" class="form-input">
+                    </div>
+                    <div class="sm:col-span-2 lg:col-span-5 flex gap-2 justify-end">
+                        <button type="button" onclick="clearIndicadorFilters()" class="btn-secondary">Limpar filtros</button>
+                        <button type="submit" class="btn-primary">
+                            <i data-lucide="filter" class="w-4 h-4"></i>
+                            Filtrar
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section id="indicadores-kpis-root" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></section>
+
+            <section class="card overflow-hidden">
+                <div class="p-4 border-b flex items-center justify-between flex-wrap gap-2" style="border-color:var(--border)">
+                    <h2 class="text-sm font-bold flex items-center gap-2" style="color:var(--ink)">
+                        <i data-lucide="alert-triangle" class="w-4 h-4" style="color:var(--warn)"></i>
+                        Atendimentos realizados sem evolução
+                    </h2>
+                    <span id="indicadores-sem-evolucao-badge" class="badge badge--warn">0 caso(s)</span>
+                </div>
+                <div id="indicadores-sem-evolucao-container" class="divide-y" style="border-color:var(--border)"></div>
+                <div id="indicadores-sem-evolucao-empty" class="hidden p-8 text-center text-sm" style="color:var(--ink-faint)">
+                    Nenhum atendimento realizado sem evolução no filtro atual. 🎉
+                </div>
+            </section>
+
+            <section class="card overflow-hidden">
+                <div class="p-4 border-b" style="border-color:var(--border)">
+                    <h2 class="text-sm font-bold" style="color:var(--ink)">Por terapeuta</h2>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Atendimentos realizados, com e sem evolução vinculada.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left" style="color:var(--ink-faint)">
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Terapeuta</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Realizados</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Com evolução</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Sem evolução</th>
+                            </tr>
+                        </thead>
+                        <tbody id="indicadores-terapeuta-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="indicadores-terapeuta-empty" class="hidden p-8 text-center text-sm" style="color:var(--ink-faint)">
+                    Nenhum atendimento realizado no filtro atual.
+                </div>
+            </section>
+
+            <section class="card overflow-hidden">
+                <div class="p-4 border-b" style="border-color:var(--border)">
+                    <h2 class="text-sm font-bold" style="color:var(--ink)">Por paciente</h2>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Faltas, desmarcações e sessões realizadas — ordenado por maior risco.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left" style="color:var(--ink-faint)">
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Paciente</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Realizados</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Faltas</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Desmarcados</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-center">Cancelados</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Alerta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="indicadores-paciente-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="indicadores-paciente-empty" class="hidden p-8 text-center text-sm" style="color:var(--ink-faint)">
+                    Nenhum atendimento no filtro atual.
+                </div>
+            </section>
+        </div>
+    </main>
+    </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script src="js/components/sidebar.js"></script>
+    <script src="js/components/topbar.js"></script>
+    <script>
+        Sidebar.mount('sidebar-root');
+        Topbar.mount('topbar-root', {
+            title: 'Indicadores',
+            subtitle: 'Visão geral de atendimentos, evolução e assiduidade da clínica.',
+            actionsHtml: `
+                <button id="refresh-btn" class="btn-secondary">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Atualizar</span>
+                </button>
+            `,
+        });
+    </script>
+
+    <script src="js/autocomplete.js"></script>
+    <script src="js/coordenacao-api.js"></script>
+    <script src="js/components/ui.js"></script>
+    <script src="js/indicadores.js"></script>
+</body>
+</html>

@@ -1,7 +1,11 @@
 // Coordenador e Admin não têm agenda própria (ver js/role-guard.js) — mandar
 // eles direto pra index.html só geraria um bounce imediato pra coordenacao.html.
+// 2026-09-17: Indicadores virou a tela principal do Coordenador (era uma aba
+// dentro de Coordenação) — só esse perfil muda de landing, Admin continua
+// caindo em coordenacao.html.
 function landingPageFor(perfilRole) {
-    if (perfilRole === 'Coordenador' || perfilRole === 'Admin') return 'coordenacao.html';
+    if (perfilRole === 'Coordenador') return 'indicadores.html';
+    if (perfilRole === 'Admin') return 'coordenacao.html';
     return 'index.html';
 }
 
