@@ -19,8 +19,12 @@
         // js/login.js) pro landing pós-login. Admin continua landing em
         // coordenacao.html (só ganhou acesso a Indicadores, sem virar a
         // home dele) — por isso a ordem não muda pro Admin.
-        Coordenador: ['indicadores.html', 'coordenacao.html', 'cadastros.html'],
-        Admin: ['coordenacao.html', 'cadastros.html', 'relatorios.html', 'supervisor.html', 'indicadores.html'],
+        // 2026-09-17: usuarios.html (gerenciar usuários — listar, editar
+        // perfil/especialidade/equipe/status, resetar senha) é visível pros
+        // dois perfis administrativos, mesmo padrão de acesso de
+        // Indicadores/Cadastros.
+        Coordenador: ['indicadores.html', 'coordenacao.html', 'cadastros.html', 'usuarios.html'],
+        Admin: ['coordenacao.html', 'cadastros.html', 'relatorios.html', 'supervisor.html', 'indicadores.html', 'usuarios.html'],
     };
 
     const allowed = ROLE_PAGES[session.perfilRole];

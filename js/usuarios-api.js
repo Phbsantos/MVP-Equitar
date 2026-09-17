@@ -7,8 +7,10 @@ const UsuariosApi = {
             nome: record.nome || '',
             email: record.email || '',
             perfilRole: record.perfil_role || '',
+            especialidadeId: record.especialidade_id ?? null,
             especialidade: record.especialidade || '',
             numeroConselho: record.numero_conselho || '',
+            equipeId: record.equipe_id ?? null,
             equipeNome: record.equipe_nome || '',
             status: record.status || 'Ativo',
         };
@@ -25,6 +27,32 @@ const UsuariosApi = {
         const data = await response.json();
         const records = Array.isArray(data) ? data : [];
         return records.map((record) => this.transformUsuario(record));
+    },
+
+    // Edição de um usuário existente (2026-09-17, tela usuarios.html) --
+    // especialidadeId/equipeId vão direto (null limpa o campo de
+    // propósito, ver 27_editar_usuario.json).
+    async editarUsuario({ id, nome, perfilRole, especialidadeId, equipeId, status }) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.USUARIO_EDITAR}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id,
+                nome,
+                perfil_role: perfilRole,
+                especialidade_id: especialidadeId,
+                equipe_id: equipeId,
+                status,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(errorText || `Erro ao editar usuário (${response.status})`);
+        }
+
+        return response.json();
     },
 
     // /listar/terapeutas não existe — só /listar/usuarios (todos os

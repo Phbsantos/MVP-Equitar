@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuários · Equitar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="js/config.js"></script>
+    <script src="js/auth-api.js"></script>
+    <script src="js/auth-guard.js"></script>
+    <script src="js/role-guard.js"></script>
+
+    <script src="js/components/theme.js"></script>
+    <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col selection:bg-clinical-100 selection:text-clinical-800">
+
+    <div class="app-shell">
+    <aside id="sidebar-root"></aside>
+    <div class="app-main">
+    <header id="topbar-root"></header>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-4 sm:py-6 space-y-6">
+
+        <div id="usuarios-loading" class="card p-10 text-center">
+            <div class="flex flex-col items-center gap-3" style="color:var(--ink-soft)">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin" style="color:var(--brand-600)"></i>
+                <p class="text-sm font-medium">Carregando usuários...</p>
+            </div>
+        </div>
+
+        <div id="usuarios-error" class="hidden card p-8 text-center">
+            <p id="usuarios-error-message" class="text-sm font-medium" style="color:var(--ink-soft)">Não foi possível carregar os dados.</p>
+        </div>
+
+        <div id="usuarios-content" class="hidden space-y-4">
+            <section class="card p-5">
+                <h2 class="text-xs font-bold uppercase tracking-wider mb-4" style="color:var(--ink-faint)">Filtros</h2>
+                <form id="filterFormUsuarios" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label for="filter-usuario-busca" class="form-label">Buscar</label>
+                        <input type="text" id="filter-usuario-busca" placeholder="Nome ou e-mail..." class="form-input">
+                    </div>
+                    <div>
+                        <label for="filter-usuario-perfil" class="form-label">Perfil</label>
+                        <select id="filter-usuario-perfil" class="form-input">
+                            <option value="">Todos os perfis</option>
+                            <option value="Terapeuta">Terapeuta</option>
+                            <option value="Supervisor">Supervisor</option>
+                            <option value="Coordenador">Coordenador</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filter-usuario-status" class="form-label">Status</label>
+                        <select id="filter-usuario-status" class="form-input">
+                            <option value="">Todos</option>
+                            <option value="Ativo">Ativo</option>
+                            <option value="Inativo">Inativo</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                        <button type="button" onclick="clearUsuarioFilters()" class="btn-secondary w-full sm:w-auto">Limpar filtros</button>
+                    </div>
+                </form>
+            </section>
+
+            <div class="flex items-center justify-between px-1 flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-sm font-bold" style="color:var(--ink)">Usuários</h2>
+                    <span id="usuarios-count-badge" class="badge badge--neutral">0 usuário(s)</span>
+                </div>
+                <a href="cadastros.html?tab=usuario" class="btn-primary">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i>
+                    Novo Usuário
+                </a>
+            </div>
+
+            <section class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left" style="color:var(--ink-faint)">
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Nome</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">E-mail</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Perfil</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Especialidade</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Equipe</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usuarios-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="usuarios-empty" class="hidden p-8 text-center text-sm" style="color:var(--ink-faint)">
+                    Nenhum usuário encontrado para os filtros selecionados.
+                </div>
+            </section>
+        </div>
+    </main>
+    </div>
+    </div>
+
+    <div id="modal-editar-usuario" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between" style="background:var(--surface-alt)">
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2" style="color:var(--ink)">
+                        <i data-lucide="pencil" class="w-4 h-4" style="color:var(--brand-600)"></i>
+                        Editar usuário
+                    </h3>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)" id="modal-editar-usuario-email">—</p>
+                </div>
+                <button onclick="closeEditarUsuarioModal()" class="btn-icon" title="Fechar">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleEditarUsuarioSubmit(event)" class="p-5 space-y-4">
+                <div>
+                    <label for="editar-usuario-nome" class="form-label">Nome</label>
+                    <input type="text" id="editar-usuario-nome" required class="form-input">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editar-usuario-perfil" class="form-label">Perfil / Role</label>
+                        <select id="editar-usuario-perfil" class="form-input">
+                            <option value="Terapeuta">Terapeuta</option>
+                            <option value="Supervisor">Supervisor</option>
+                            <option value="Coordenador">Coordenador</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="editar-usuario-status" class="form-label">Status</label>
+                        <select id="editar-usuario-status" class="form-input">
+                            <option value="Ativo">Ativo</option>
+                            <option value="Inativo">Inativo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editar-usuario-especialidade" class="form-label">Especialidade</label>
+                        <select id="editar-usuario-especialidade" class="form-input">
+                            <option value="">Nenhuma</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="editar-usuario-equipe" class="form-label">Equipe</label>
+                        <select id="editar-usuario-equipe" class="form-input">
+                            <option value="">Sem equipe</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-3 border-t" style="border-color:var(--border)">
+                    <button type="button" onclick="closeEditarUsuarioModal()" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-primary">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Salvar Alteração
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resetar senha — reaproveita /resetar/senha-usuario (mesmo endpoint
+         do card em cadastros.html); nunca mostra a senha de novo depois
+         de fechar, e nunca é enviada por e-mail. -->
+    <div id="modal-resetar-senha-usuario" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between" style="background:var(--surface-alt)">
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2" style="color:var(--ink)">
+                        <i data-lucide="key-round" class="w-4 h-4" style="color:var(--brand-600)"></i>
+                        Resetar senha
+                    </h3>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)" id="modal-resetar-senha-nome">—</p>
+                </div>
+                <button onclick="closeResetarSenhaUsuarioModal()" class="btn-icon" title="Fechar">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleResetarSenhaUsuarioSubmit(event)" class="p-5 space-y-3">
+                <div>
+                    <label for="resetar-senha-usuario-valor" class="form-label">Nova senha</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="resetar-senha-usuario-valor" required minlength="6" placeholder="Digite ou gere uma senha" class="form-input">
+                        <button type="button" onclick="handleGerarSenhaUsuario()" class="btn-secondary shrink-0" title="Gerar senha aleatória">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <p class="text-[11px] mt-1" style="color:var(--ink-faint)">Mínimo 6 caracteres. Copie antes de salvar — ela não aparece de novo depois.</p>
+                </div>
+
+                <div class="pt-1 flex justify-end">
+                    <button type="submit" class="btn-primary">
+                        <i data-lucide="key-round" class="w-4 h-4"></i>
+                        Resetar Senha
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script src="js/components/sidebar.js"></script>
+    <script src="js/components/topbar.js"></script>
+    <script>
+        Sidebar.mount('sidebar-root');
+        Topbar.mount('topbar-root', {
+            title: 'Usuários',
+            subtitle: 'Veja e gerencie os usuários da clínica.',
+            actionsHtml: `
+                <button id="refresh-btn" class="btn-secondary">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Atualizar</span>
+                </button>
+            `,
+        });
+    </script>
+
+    <script src="js/usuarios-api.js"></script>
+    <script src="js/cadastro-api.js"></script>
+    <script src="js/usuarios.js"></script>
+</body>
+</html>

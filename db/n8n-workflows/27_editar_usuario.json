@@ -1,0 +1,93 @@
+{
+  "id": "eqtr27EditarUsuario",
+  "name": "Equitar - POST /editar/usuario",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0027-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "editar/usuario",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_editar",
+      "name": "Editar Usuario",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Tela usuarios.html (Coordenador/Admin) -- edita um usuário já\n-- existente. Diferente de /registrar/usuario (que resolve\n-- especialidade/equipe por NOME de texto livre), aqui o frontend já\n-- manda os ids reais (selects populados por /listar/especialidades e\n-- /listar/equipes), então especialidade_id/equipe_id são SET direto (não\n-- COALESCE) -- manda NULL de propósito quando o usuário tira a\n-- especialidade/equipe pelo formulário. Não mexe em email nem senha\n-- aqui (email é o login, mudar isso é um fluxo separado; senha tem seu\n-- próprio endpoint, /resetar/senha-usuario).\n-- CTE + SELECT final garante sempre 1 linha de volta (mesmo se o id não\n-- existir), pra responder 404 limpo em vez de deixar o fluxo morrer com\n-- 0 itens.\nWITH upd AS (\n  UPDATE usuarios SET\n    nome = COALESCE($2, nome),\n    perfil_role = COALESCE($3::perfil_role, perfil_role),\n    especialidade_id = $4::int,\n    equipe_id = $5::int,\n    status = COALESCE($6::status_ativo, status)\n  WHERE id = $1::int\n  RETURNING id, nome, email, perfil_role::text AS perfil_role, especialidade_id, equipe_id, status::text AS status\n)\nSELECT\n  (SELECT id FROM upd) IS NOT NULL AS encontrado,\n  (SELECT id FROM upd) AS id,\n  (SELECT nome FROM upd) AS nome,\n  (SELECT email FROM upd) AS email,\n  (SELECT perfil_role FROM upd) AS perfil_role,\n  (SELECT especialidade_id FROM upd) AS especialidade_id,\n  (SELECT equipe_id FROM upd) AS equipe_id,\n  (SELECT status FROM upd) AS status",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.id, $json.body.nome || null, $json.body.perfil_role || null, $json.body.especialidade_id, $json.body.equipe_id, $json.body.status || null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "if_encontrado",
+      "name": "Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [520, 300],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.encontrado }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 }
+        }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Usuário atualizado com sucesso.\", usuario: { id: $json.id, nome: $json.nome, email: $json.email, perfilRole: $json.perfil_role, especialidadeId: $json.especialidade_id, equipeId: $json.equipe_id, status: $json.status } } }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond_nao_encontrado",
+      "name": "Responder Nao Encontrado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 420],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: false, mensagem: \"Usuário não encontrado.\" } }}",
+        "options": { "responseCode": 404 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Editar Usuario", "type": "main", "index": 0 }]] },
+    "Editar Usuario": { "main": [[{ "node": "Encontrado?", "type": "main", "index": 0 }]] },
+    "Encontrado?": {
+      "main": [
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }],
+        [{ "node": "Responder Nao Encontrado", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

@@ -28,6 +28,7 @@ const Sidebar = {
         { href: 'indicadores.html', label: 'Indicadores', icon: 'bar-chart-3' },
         { href: 'coordenacao.html', label: 'Coordenação', icon: 'layout-dashboard' },
         { href: 'cadastros.html', label: 'Cadastros', icon: 'user-plus' },
+        { href: 'usuarios.html', label: 'Usuários', icon: 'users-round' },
     ],
 
     COLLAPSE_KEY: 'equitar_sidebar_collapsed',

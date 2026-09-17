@@ -99,6 +99,13 @@ const CONFIG = {
         MODELO_EVOLUCAO_REGISTRAR: '/registrar/modelo-evolucao',
         // DELETE, não POST -- remove um modelo por id (?id=).
         MODELO_EVOLUCAO_REMOVER: '/remover/modelo-evolucao',
+        // 2026-09-17: edição de usuário existente (tela usuarios.html,
+        // Coordenador/Admin) -- nome, perfil, especialidade, equipe e
+        // status. Diferente do registrar/usuario (que resolve
+        // especialidade/equipe por NOME de texto), aqui o frontend já
+        // manda os ids reais (selects populados por /listar/especialidades
+        // e /listar/equipes). Não mexe em email nem senha.
+        USUARIO_EDITAR: '/editar/usuario',
         // 2026-09-17: corrige o Status_Presenca de um atendimento direto,
         // sem depender de relatório vinculado -- usado pra reabrir (voltar
         // pra "Agendado") um atendimento "Realizado sem evolução" na aba
