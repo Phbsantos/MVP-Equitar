@@ -12,7 +12,7 @@
     const ROLE_PAGES = {
         Terapeuta: ['index.html'],
         Supervisor: ['index.html', 'supervisor.html'],
-        Coordenador: ['coordenacao.html', 'cadastros.html', 'relatorios.html', 'supervisor.html'],
+        Coordenador: ['coordenacao.html', 'cadastros.html'],
         Admin: ['coordenacao.html', 'cadastros.html', 'relatorios.html', 'supervisor.html'],
     };
 
