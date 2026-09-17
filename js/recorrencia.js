@@ -1,13 +1,18 @@
 // Cadastro de Recorrência semanal — aba "Nova Recorrência" em cadastros.html.
 //
-// Contexto importante (decisão da Roseane em 2026-09-01, revista no mesmo
-// dia): por enquanto NADA aqui é enviado ao backend — nem a Recorrência,
-// nem os Atendimentos que ela representaria. Tudo fica só nesta sessão do
-// navegador (sessionStorage), mesmo padrão já usado pra edição de
-// relatórios em coordenacao.js. O endpoint /criar/atendimento já é usado
-// em outro lugar do app (SupervisorApi.agendarSessaoAvulsa) e existe aqui
-// também em CadastroApi.criarAtendimento, pronto pra quando decidirem
-// ativar a geração de verdade — só não é chamado neste fluxo por ora.
+// 2026-09-17: ativada de verdade contra o backend (era session-only desde
+// 2026-09-01 — ver equitar-feature-state). Agora: /registrar/recorrencia
+// grava a recorrência em si (paciente/terapeuta/horário/dias da semana/
+// período), e em seguida CadastroApi.criarAtendimento é chamado uma vez
+// por data calculada (a mesma lógica de calcularDatasGeracao de antes),
+// passando o id da recorrência recém-criada — os atendimentos ficam
+// linkados de verdade via recorrencia_id. A lista/grade é sempre recarregada
+// do backend (/listar/recorrencias), não guarda mais estado em sessionStorage.
+//
+// Arrastar um card pra outro dia/horário foi REMOVIDO por enquanto: isso
+// exigiria um endpoint de atualização de recorrência que ainda não existe
+// (só criar/listar) — reativar quando esse endpoint existir.
+//
 // Índice 0-6 = Domingo-Sábado, batendo com Date.getDay() — precisa ficar
 // completo mesmo sem Domingo aparecer na grade/chips (ver DIAS_SEMANA_VISIVEIS).
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -15,7 +20,6 @@ const DIAS_SEMANA_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 // A clínica não atende aos domingos — removido tanto da grade quanto dos
 // chips de seleção do formulário (ficariam inconsistentes um sem o outro).
 const DIAS_SEMANA_VISIVEIS = DIAS_SEMANA.filter((d) => d !== 'Domingo');
-const RECORRENCIA_STORAGE_KEY = 'equitar_recorrencias_sessao';
 const RECORRENCIA_GRADE_HORA_INICIO = 7;
 const RECORRENCIA_GRADE_HORA_FIM = 20; // exclusivo — última linha exibida é 19h
 const RECORRENCIA_MAX_ATENDIMENTOS_POR_VEZ = 60;
@@ -28,27 +32,6 @@ let diasSelecionados = new Set();
 let terapeutaCorMap = new Map();
 let pacienteAutocompleteRecorrencia = null;
 let terapeutaAutocompleteRecorrencia = null;
-let blocoArrastado = null; // { recorrenciaId, diaOrigem } — enquanto um card está sendo arrastado na grade
-
-// -----------------------------------------------------------------------
-// Estado em sessão
-// -----------------------------------------------------------------------
-function getRecorrenciasSessao() {
-    try {
-        return JSON.parse(sessionStorage.getItem(RECORRENCIA_STORAGE_KEY) || '[]');
-    } catch {
-        return [];
-    }
-}
-
-function saveRecorrenciasSessao(lista) {
-    try {
-        sessionStorage.setItem(RECORRENCIA_STORAGE_KEY, JSON.stringify(lista));
-    } catch {
-        // sessionStorage indisponível — a recorrência ainda foi salva na
-        // variável em memória, só não sobrevive a um F5.
-    }
-}
 
 function formatDateBr(isoDate) {
     if (!isoDate) return '';
@@ -92,7 +75,8 @@ function toggleDiaSemana(dia) {
 
 // -----------------------------------------------------------------------
 // Grade semanal — mostra as recorrências ativas como blocos; clicar num
-// horário livre pré-preenche o formulário (dia + horário).
+// horário livre pré-preenche o formulário (dia + horário). Sem drag-and-drop
+// (ver nota no topo do arquivo — precisaria de endpoint de atualização).
 // -----------------------------------------------------------------------
 function corParaTerapeuta(nome) {
     if (!terapeutaCorMap.has(nome)) {
@@ -109,62 +93,6 @@ function onGradeSlotClick(dia, hora) {
     horarioInput.value = hora;
 
     showToast(`${dia}, ${hora} preenchido no formulário.`, 'info');
-}
-
-// -----------------------------------------------------------------------
-// Drag and drop dos cards já cadastrados — arrastar um bloco pra outra
-// célula muda o dia/horário DAQUELE dia específico da recorrência (as
-// demais ocorrências dela, se houver mais de um dia da semana, não mudam).
-// -----------------------------------------------------------------------
-function onBlocoDragStart(event, recorrenciaId, diaOrigem) {
-    blocoArrastado = { recorrenciaId, diaOrigem };
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', `${recorrenciaId}|${diaOrigem}`);
-    event.currentTarget.classList.add('dragging');
-}
-
-function onBlocoDragEnd(event) {
-    event.currentTarget.classList.remove('dragging');
-    blocoArrastado = null;
-}
-
-function onSlotDragOver(event) {
-    if (!blocoArrastado) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    event.currentTarget.classList.add('drag-over');
-}
-
-function onSlotDragLeave(event) {
-    event.currentTarget.classList.remove('drag-over');
-}
-
-function onSlotDrop(event, diaDestino, horaDestino) {
-    event.preventDefault();
-    event.currentTarget.classList.remove('drag-over');
-    if (!blocoArrastado) return;
-
-    const { recorrenciaId, diaOrigem } = blocoArrastado;
-    const recorrencia = recorrencias.find((r) => r.id === recorrenciaId);
-    blocoArrastado = null;
-    if (!recorrencia) return;
-
-    if (diaOrigem === diaDestino && recorrencia.horario === horaDestino) return;
-
-    // Troca o dia de origem pelo de destino (sem duplicar, caso a
-    // recorrência já tenha uma ocorrência nesse outro dia) e adota o novo
-    // horário pra todos os dias dela — arrastar move a "grade" inteira pro
-    // novo horário, só o dia muda individualmente.
-    const novosDias = new Set(recorrencia.diasSemana);
-    novosDias.delete(diaOrigem);
-    novosDias.add(diaDestino);
-    recorrencia.diasSemana = [...novosDias];
-    recorrencia.horario = horaDestino;
-
-    saveRecorrenciasSessao(recorrencias);
-    renderRecorrenciaGrid();
-    renderRecorrenciasLista();
-    showToast(`${escapeHtml(recorrencia.pacienteNome)} movido(a) para ${diaDestino}, ${horaDestino}.`, 'success');
 }
 
 function renderGradeLegenda(filtroTerapeuta, ativas) {
@@ -206,8 +134,7 @@ function renderRecorrenciaGrid() {
         html += `<div class="recorrencia-grade-cell recorrencia-grade-header" style="grid-row:1; grid-column:${i + 2};">${DIAS_SEMANA_ABREV[DIAS_SEMANA.indexOf(dia)]}</div>`;
     });
 
-    // Linhas de horário + células clicáveis (também alvo do drop ao
-    // arrastar um card já cadastrado)
+    // Linhas de horário + células clicáveis
     for (let h = RECORRENCIA_GRADE_HORA_INICIO; h < RECORRENCIA_GRADE_HORA_FIM; h++) {
         const linha = h - RECORRENCIA_GRADE_HORA_INICIO + 2;
         const horaLabel = `${String(h).padStart(2, '0')}:00`;
@@ -217,16 +144,12 @@ function renderRecorrenciaGrid() {
             html += `<div class="recorrencia-grade-cell recorrencia-grade-slot"
                 style="grid-row:${linha}; grid-column:${i + 2};"
                 onclick="onGradeSlotClick('${dia}', '${horaLabel}')"
-                ondragover="onSlotDragOver(event)"
-                ondragleave="onSlotDragLeave(event)"
-                ondrop="onSlotDrop(event, '${dia}', '${horaLabel}')"
             ></div>`;
         });
     }
 
     // Blocos das recorrências ativas — altura proporcional à duração (uma
-    // hora cheia = 3rem, ver grid-template-rows acima) e arrastáveis pra
-    // mudar de dia/horário.
+    // hora cheia = 3rem, ver grid-template-rows acima).
     const ALTURA_HORA_REM = 3;
     ativas.forEach((r) => {
         const cor = filtroTerapeuta ? 'var(--brand-600)' : corParaTerapeuta(r.terapeutaNome);
@@ -242,11 +165,9 @@ function renderRecorrenciaGrid() {
             if (diaIndex === -1) return;
 
             html += `
-                <div class="recorrencia-grade-bloco" draggable="true"
+                <div class="recorrencia-grade-bloco"
                     style="grid-row:${linha}; grid-column:${diaIndex + 2}; background:${cor}; height:${alturaRem}rem;"
-                    title="${escapeHtml(r.pacienteNome)} · ${escapeHtml(r.terapeutaNome)} · ${escapeHtml(r.horario)}–${horarioFim} · arraste pra mudar de dia/horário"
-                    ondragstart="onBlocoDragStart(event, '${r.id}', '${dia}')"
-                    ondragend="onBlocoDragEnd(event)"
+                    title="${escapeHtml(r.pacienteNome)} · ${escapeHtml(r.terapeutaNome)} · ${escapeHtml(r.horario)}–${horarioFim}"
                 >
                     <span class="block truncate font-semibold">${escapeHtml(r.pacienteNome)}</span>
                     <span class="block truncate opacity-90">${escapeHtml(r.horario)}–${horarioFim}${filtroTerapeuta ? '' : ' · ' + escapeHtml(r.terapeutaNome)}</span>
@@ -289,7 +210,9 @@ function calcularDatasGeracao({ diasSemana, dataInicio, dataFim, semanas }) {
 }
 
 // -----------------------------------------------------------------------
-// Lista de recorrências cadastradas nesta sessão
+// Lista de recorrências cadastradas (vem do backend agora, não mais de
+// sessionStorage) — sem o badge de "previsto(s)", que era só uma prévia de
+// criação e não é um dado persistido.
 // -----------------------------------------------------------------------
 function renderRecorrenciasLista() {
     const container = document.getElementById('recorrencias-lista');
@@ -321,19 +244,27 @@ function renderRecorrenciasLista() {
                     a partir de ${formatDateBr(r.dataInicio)}${r.dataFim ? ` até ${formatDateBr(r.dataFim)}` : ''}
                 </p>
             </div>
-            <span class="badge badge--neutral shrink-0">${r.atendimentosPrevistos} previsto(s)</span>
+            <span class="badge ${r.status === 'Ativa' ? 'badge--ok' : 'badge--neutral'} shrink-0">${escapeHtml(r.status)}</span>
         </div>
     `;
         })
         .join('');
 }
 
+async function recarregarRecorrencias() {
+    recorrencias = await CadastroApi.fetchRecorrencias();
+    renderRecorrenciasLista();
+    renderRecorrenciaGrid();
+}
+
 // -----------------------------------------------------------------------
-// Envio do formulário — por decisão atual, salva só nesta sessão (nada é
-// enviado ao backend). "atendimentosPrevistos" é calculado localmente, sem
-// nenhuma chamada de rede.
+// Envio do formulário — grava a recorrência de verdade (/registrar/
+// recorrencia) e, com o id devolvido, gera cada atendimento previsto de
+// verdade também (um POST /criar/atendimento por data, linkado via
+// recorrencia_id). Se algum atendimento individual falhar, os demais
+// seguem — o resumo final informa quantos deram certo.
 // -----------------------------------------------------------------------
-function handleRecorrenciaSubmit(event) {
+async function handleRecorrenciaSubmit(event) {
     event.preventDefault();
 
     const pacienteNome = document.getElementById('recorrencia-paciente').value.trim();
@@ -361,8 +292,9 @@ function handleRecorrenciaSubmit(event) {
         return;
     }
 
+    const diasSemanaArray = [...diasSelecionados];
     const datas = calcularDatasGeracao({
-        diasSemana: [...diasSelecionados],
+        diasSemana: diasSemanaArray,
         dataInicio,
         dataFim: dataFimInput || null,
         semanas,
@@ -380,42 +312,72 @@ function handleRecorrenciaSubmit(event) {
         return;
     }
 
-    const novaRecorrencia = {
-        id: `REC-${Date.now().toString(36).toUpperCase()}`,
-        pacienteNome,
-        terapeutaNome,
-        diasSemana: [...diasSelecionados],
-        horario,
-        duracaoMinutos,
-        dataInicio,
-        dataFim: dataFimInput || null,
-        status: 'Ativa',
-        criadoEm: new Date().toISOString(),
-        atendimentosPrevistos: datas.length,
-    };
+    const submitButton = document.querySelector('#form-recorrencia button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
 
-    recorrencias = [novaRecorrencia, ...getRecorrenciasSessao()];
-    saveRecorrenciasSessao(recorrencias);
+    try {
+        showToast(`Salvando recorrência e gerando ${datas.length} atendimento(s)...`, 'info');
 
-    showToast(`Recorrência salva nesta sessão — ${datas.length} atendimento(s) previsto(s) (ainda não enviados à agenda).`, 'success');
+        const respostaRecorrencia = await CadastroApi.registrarRecorrencia(
+            CadastroApi.buildRecorrenciaPayload({
+                pacienteNome,
+                terapeutaNome,
+                horario,
+                duracaoMinutos,
+                dataInicio,
+                dataFim: dataFimInput || null,
+                status: 'Ativa',
+                diasSemana: diasSemanaArray,
+            })
+        );
 
-    document.getElementById('form-recorrencia').reset();
-    document.getElementById('recorrencia-duracao').value = String(RECORRENCIA_DURACAO_PADRAO_MINUTOS);
-    diasSelecionados.clear();
-    renderDiasSemanaChips();
-    renderRecorrenciasLista();
-    renderRecorrenciaGrid();
+        const recorrenciaId = respostaRecorrencia && respostaRecorrencia.recorrencia && respostaRecorrencia.recorrencia.id;
+
+        let sucessos = 0;
+        for (const data of datas) {
+            try {
+                await CadastroApi.criarAtendimento(
+                    CadastroApi.buildAtendimentoPayload({
+                        pacienteNome,
+                        terapeutaNome,
+                        dataHora: `${data}T${horario}:00-03:00`,
+                        recorrenciaId,
+                    })
+                );
+                sucessos++;
+            } catch (erroAtendimento) {
+                console.error(`Falha ao gerar atendimento de ${data}:`, erroAtendimento);
+            }
+        }
+
+        if (sucessos === datas.length) {
+            showToast(`Recorrência salva — ${sucessos} atendimento(s) gerado(s) na agenda.`, 'success');
+        } else {
+            showToast(
+                `Recorrência salva, mas só ${sucessos} de ${datas.length} atendimento(s) foram gerados — confira o console para detalhes.`,
+                'error'
+            );
+        }
+
+        document.getElementById('form-recorrencia').reset();
+        document.getElementById('recorrencia-duracao').value = String(RECORRENCIA_DURACAO_PADRAO_MINUTOS);
+        diasSelecionados.clear();
+        renderDiasSemanaChips();
+        await recarregarRecorrencias();
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao salvar a recorrência.', 'error');
+    } finally {
+        if (submitButton) submitButton.disabled = false;
+    }
 }
 
 // -----------------------------------------------------------------------
 // Inicialização
 // -----------------------------------------------------------------------
 async function initRecorrenciaTab() {
-    recorrencias = getRecorrenciasSessao();
     diasSelecionados = new Set();
     renderDiasSemanaChips();
-    renderRecorrenciasLista();
-    renderRecorrenciaGrid();
 
     document.getElementById('recorrencia-data-inicio').value = new Date().toISOString().slice(0, 10);
 
@@ -426,6 +388,7 @@ async function initRecorrenciaTab() {
 
     try {
         const [pacientes, terapeutas] = await Promise.all([PacientesApi.fetchPacientes(), UsuariosApi.fetchTerapeutas()]);
+        await recarregarRecorrencias();
 
         const pacienteInput = document.getElementById('recorrencia-paciente');
         if (pacientes.length === 0) {
@@ -451,7 +414,7 @@ async function initRecorrenciaTab() {
         }
     } catch (error) {
         console.error(error);
-        showToast(error.message || 'Erro ao carregar pacientes/terapeutas.', 'error');
+        showToast(error.message || 'Erro ao carregar pacientes/terapeutas/recorrências.', 'error');
     }
 }
 

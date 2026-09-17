@@ -94,11 +94,10 @@ const CadastroApi = {
     // /criar/atendimento — testado e funcionando (ver
     // SupervisorApi.agendarSessaoAvulsa). Centralizado aqui pra ser
     // reaproveitado por qualquer tela que precise criar um atendimento real
-    // (ex: geração de atendimentos a partir de uma Recorrência em
-    // cadastros.html — a tabela `recorrencias` já existe de verdade no
-    // Postgres desde 2026-09-07, mas ainda não tem endpoint de
-    // criar/listar no n8n; a feature continua session-only por enquanto,
-    // ver js/recorrencia.js).
+    // (ex: geração de atendimentos a partir de uma Recorrência, ver
+    // js/recorrencia.js). recorrenciaId é opcional — quando vem de uma
+    // recorrência, linka o atendimento gerado a ela de verdade
+    // (recorrencia_id, ver db/n8n-workflows/10_criar_atendimento.json).
     buildAtendimentoPayload(formData) {
         return {
             paciente_nome: formData.pacienteNome,
@@ -106,11 +105,69 @@ const CadastroApi = {
             data_hora: formData.dataHora,
             supervisor_nome: formData.supervisorNome || '',
             tipo_atendimento: formData.tipoAtendimento || 'Sessão Regular',
+            recorrencia_id: formData.recorrenciaId || null,
         };
     },
 
     async criarAtendimento(payload) {
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.ATENDIMENTO_CRIAR}`;
         return this.postJson(url, payload);
+    },
+
+    // Recorrência (2026-09-17): virou tabela de verdade com endpoint
+    // próprio (antes era session-only, ver db/n8n-workflows/
+    // 11_listar_recorrencias.json e 12_registrar_recorrencia.json). O
+    // endpoint só grava a recorrência em si (paciente/terapeuta/horário/
+    // dias da semana/período) — gerar os atendimentos de fato ainda é
+    // responsabilidade do chamador, um a um via criarAtendimento acima,
+    // passando o id devolvido aqui como recorrenciaId (ver
+    // js/recorrencia.js).
+    buildRecorrenciaPayload(formData) {
+        return {
+            paciente_nome: formData.pacienteNome,
+            terapeuta_nome: formData.terapeutaNome,
+            horario: formData.horario,
+            duracao_minutos: formData.duracaoMinutos || null,
+            data_inicio: formData.dataInicio,
+            data_fim: formData.dataFim || null,
+            status: formData.status || 'Ativa',
+            dias_semana: formData.diasSemana,
+        };
+    },
+
+    async registrarRecorrencia(payload) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.RECORRENCIA_REGISTRAR}`;
+        return this.postJson(url, payload);
+    },
+
+    transformRecorrencia(record) {
+        return {
+            id: record.id,
+            pacienteId: record.paciente_id,
+            pacienteNome: record.paciente_nome,
+            terapeutaId: record.terapeuta_id,
+            terapeutaNome: record.terapeuta_nome,
+            // Postgres devolve TIME como "HH:MM:SS" — a UI trabalha com
+            // "HH:MM" (mesmo formato do <input type="time">).
+            horario: (record.horario || '').slice(0, 5),
+            duracaoMinutos: record.duracao_minutos,
+            dataInicio: record.data_inicio,
+            dataFim: record.data_fim,
+            status: record.status,
+            diasSemana: record.dias_semana || [],
+        };
+    },
+
+    async fetchRecorrencias() {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_RECORRENCIAS}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar recorrências (${response.status})`);
+        }
+
+        const data = await response.json();
+        const records = Array.isArray(data) ? data : [];
+        return records.map((record) => this.transformRecorrencia(record));
     },
 };
