@@ -84,11 +84,12 @@ const CoordenacaoApi = {
         return response.json();
     },
 
-    // Reabre um atendimento "Realizado sem evolução" de volta pra
-    // "Agendado" (2026-09-17, aba Indicadores) -- corrige o
-    // Status_Presenca direto no atendimento, sem depender de nenhum
-    // relatório vinculado (diferente de editarRelatorio, que só funciona
-    // quando já existe relatório pra editar).
+    // Reabre um atendimento "Realizado sem evolução" (2026-09-17, aba
+    // Indicadores) -- corrige o Status_Presenca direto no atendimento, sem
+    // depender de nenhum relatório vinculado (diferente de editarRelatorio,
+    // que só funciona quando já existe relatório pra editar). statusPresenca
+    // é genérico (o endpoint aceita qualquer valor válido do enum), mas o
+    // uso real hoje é sempre 'Pendente de Evolução' (ver js/indicadores.js).
     async atualizarStatusAtendimento(id, statusPresenca) {
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.ATENDIMENTO_STATUS_ATUALIZAR}`;
         const response = await fetch(url, {

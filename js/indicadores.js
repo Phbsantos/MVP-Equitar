@@ -179,9 +179,9 @@ function renderIndicadoresSemEvolucao(semEvolucaoList) {
             </div>
             <div class="flex items-center gap-2 shrink-0">
                 <span class="badge badge--warn">Sem evolução</span>
-                <button type="button" onclick="handleReabrirAtendimento(${a.id})" class="btn-secondary text-xs" title="Volta o status desse atendimento pra Agendado, pro terapeuta fechar de novo">
+                <button type="button" onclick="handleReabrirAtendimento(${a.id})" class="btn-secondary text-xs" title="Marca como Pendente de Evolução -- some do 'Realizado', aparece pro terapeuta igual um atendimento pendente">
                     <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                    Marcar como Agendado
+                    Marcar como Pendente
                 </button>
             </div>
         </div>
@@ -190,14 +190,20 @@ function renderIndicadoresSemEvolucao(semEvolucaoList) {
         .join('');
 }
 
-// Reabre um atendimento "Realizado sem evolução" de volta pra "Agendado" —
-// pedido direto do Coordenador: quando o terapeuta marca a sessão como
-// feita mas nunca escreve a evolução, o coordenador precisa poder devolver
-// o atendimento pra agenda dele em vez de ficar sem evolução pra sempre.
+// Reabre um atendimento "Realizado sem evolução" -- pedido direto do
+// Coordenador: quando o terapeuta marca a sessão como feita mas nunca
+// escreve a evolução, o coordenador precisa poder devolver isso pra
+// agenda do terapeuta em vez de ficar sem evolução pra sempre. Não volta
+// pra "Agendado" (que significaria "a sessão ainda não aconteceu") --
+// vira "Pendente de Evolução" (ver db/migrations/005_status_pendente_evolucao.sql),
+// um status próprio que segue a MESMA regra de "Agendado" do ponto de
+// vista do terapeuta (mesmo badge "Pendente", mesmo aviso de atendimentos
+// atrasados — ver ApiService.mapApiStatusToInternal/
+// fetchAtendimentosPendentesAnteriores em js/api.js).
 async function handleReabrirAtendimento(id) {
     try {
-        await CoordenacaoApi.atualizarStatusAtendimento(id, 'Agendado');
-        showToast('Atendimento reaberto como Agendado.', 'success');
+        await CoordenacaoApi.atualizarStatusAtendimento(id, 'Pendente de Evolução');
+        showToast('Atendimento marcado como pendente de evolução.', 'success');
         await loadIndicadoresDados();
     } catch (error) {
         console.error(error);

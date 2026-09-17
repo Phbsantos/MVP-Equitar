@@ -1,0 +1,17 @@
+-- 005_status_pendente_evolucao.sql
+-- Novo valor do enum status_presenca: quando o Coordenador reabre um
+-- atendimento "Realizado sem evolução" (terapeuta marcou como feito mas
+-- nunca escreveu a evolução), ele não deveria voltar pra "Agendado" --
+-- esse valor significa "a sessão ainda não aconteceu", o que não é
+-- verdade aqui (a sessão ocorreu, só falta o relato). "Pendente de
+-- Evolução" preserva essa distinção, mas segue a MESMA regra de
+-- "Agendado" pra gerar o aviso ao terapeuta (ver
+-- ApiService.mapApiStatusToInternal e fetchAtendimentosPendentesAnteriores
+-- em js/api.js) -- ambos caem no mesmo "pending" interno, mostram o
+-- mesmo badge "Pendente" na agenda e entram no mesmo aviso de
+-- atendimentos atrasados.
+--
+-- ALTER TYPE ... ADD VALUE não pode rodar dentro do mesmo bloco de
+-- transação que usa o valor novo -- precisa ser sua própria execução.
+-- Rodar com: psql -U equitar_user -d equitar_db -f 005_status_pendente_evolucao.sql
+ALTER TYPE status_presenca ADD VALUE IF NOT EXISTS 'Pendente de Evolução';

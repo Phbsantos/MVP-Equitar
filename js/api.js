@@ -9,6 +9,13 @@ const ApiService = {
     mapApiStatusToInternal(apiStatus) {
         const map = {
             Agendado: 'pending',
+            // 2026-09-17: status novo -- Coordenador reabre um "Realizado sem
+            // evolução" pra este valor em vez de "Agendado" (ver
+            // db/migrations/005_status_pendente_evolucao.sql), mas ele deve
+            // se comportar exatamente igual a "Agendado" do ponto de vista
+            // do terapeuta: mesmo badge "Pendente", mesmo aviso de
+            // atendimentos atrasados (ver fetchAtendimentosPendentesAnteriores).
+            'Pendente de Evolução': 'pending',
             Realizado: 'realizado',
             'Falta sem Aviso': 'falta',
             'Desmarcado com Aviso': 'desmarcado',
@@ -105,13 +112,18 @@ const ApiService = {
             .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
     },
 
-    // Atendimentos que ficaram "Agendado" em dias ANTERIORES a hoje — nunca
-    // foram fechados (terapeuta esqueceu, ou o dia acabou sem sobrar tempo).
-    // Diferente do filtro "Pendentes" da lista da agenda (que é só o que
-    // ainda falta fechar NO DIA selecionado): aqui é sempre relativo à data
-    // real de hoje, independente de qual dia está aberto na tela. Usa os
-    // filtros de servidor que /listar/atendimentos já tinha (data_fim +
-    // status_presenca) — não precisa trazer tudo e filtrar no cliente.
+    // Atendimentos que ficaram pendentes (Agendado ou Pendente de Evolução —
+    // ver mapApiStatusToInternal) em dias ANTERIORES a hoje. Diferente do
+    // filtro "Pendentes" da lista da agenda (que é só o que ainda falta
+    // fechar NO DIA selecionado): aqui é sempre relativo à data real de
+    // hoje, independente de qual dia está aberto na tela.
+    //
+    // 2026-09-17: /listar/atendimentos só filtra status_presenca por
+    // igualdade exata (um valor só), e agora existem DOIS valores que
+    // contam como pendente pro terapeuta -- não dá mais pra filtrar isso
+    // no servidor com esse endpoint. Passa a trazer tudo antes de ontem
+    // pra esse terapeuta (poucos itens, sem custo real) e filtra no
+    // cliente por status interno === 'pending', que já cobre os dois.
     async fetchAtendimentosPendentesAnteriores(terapeutaId) {
         if (!terapeutaId) return [];
 
@@ -122,7 +134,6 @@ const ApiService = {
         const params = new URLSearchParams({
             terapeuta_id: terapeutaId,
             data_fim: dataFim,
-            status_presenca: 'Agendado',
         });
 
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}?${params.toString()}`;
@@ -137,6 +148,7 @@ const ApiService = {
 
         return records
             .map((record) => this.transformAtendimento(record))
+            .filter((item) => item.status === 'pending')
             .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
     },
 
