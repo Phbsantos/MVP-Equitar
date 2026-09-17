@@ -551,6 +551,18 @@ function openEditRelatorioModal(id) {
     document.getElementById('modal-editar-data').value = toDateInputValue(relatorio.data);
     document.getElementById('modal-editar-conteudo').value = relatorio.conteudo;
 
+    // Status de presença do atendimento só existe pra relatório de
+    // Evolução (tem atendimento_id vinculado) -- Avulso não tem o que
+    // corrigir aqui, então o campo some (ver handleEditRelatorioSubmit).
+    const statusContainer = document.getElementById('modal-editar-status-container');
+    const statusSelect = document.getElementById('modal-editar-status');
+    if (relatorio.atendimentoId && relatorio.statusAtendimento) {
+        statusSelect.value = relatorio.statusAtendimento;
+        statusContainer.classList.remove('hidden');
+    } else {
+        statusContainer.classList.add('hidden');
+    }
+
     document.getElementById('modal-editar-relatorio').classList.remove('hidden');
     lucide.createIcons();
 }
@@ -568,12 +580,21 @@ async function handleEditRelatorioSubmit(event) {
     const conteudo = document.getElementById('modal-editar-conteudo').value.trim();
     const session = AuthApi.getSession();
 
+    // Só manda status_presenca se o campo estiver visível (relatório de
+    // Evolução com atendimento vinculado) -- escondido significa Avulso,
+    // sem atendimento pra corrigir (ver openEditRelatorioModal).
+    const statusContainer = document.getElementById('modal-editar-status-container');
+    const statusPresenca = statusContainer.classList.contains('hidden')
+        ? null
+        : document.getElementById('modal-editar-status').value;
+
     try {
         await CoordenacaoApi.editarRelatorio({
             id: editingRelatorioId,
             data,
             conteudo,
             editadoPorNome: (session && session.nome) || '',
+            statusPresenca,
         });
 
         closeEditRelatorioModal();

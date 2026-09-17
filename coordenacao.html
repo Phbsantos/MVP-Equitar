@@ -409,6 +409,16 @@
                     <textarea id="modal-editar-conteudo" rows="8" required class="form-input text-sm leading-relaxed"></textarea>
                 </div>
 
+                <div id="modal-editar-status-container" class="hidden">
+                    <label for="modal-editar-status" class="form-label">Status de Presença do Atendimento</label>
+                    <select id="modal-editar-status" class="form-input">
+                        <option value="Realizado">Realizado</option>
+                        <option value="Falta sem Aviso">Falta sem Aviso</option>
+                        <option value="Desmarcado com Aviso">Desmarcado com Aviso</option>
+                        <option value="Cancelado pelo Terapeuta">Cancelado pelo Terapeuta</option>
+                    </select>
+                </div>
+
                 <div class="pt-2 flex items-center justify-end gap-3 border-t" style="border-color:var(--border)">
                     <button type="button" onclick="closeEditRelatorioModal()" class="btn-secondary">Cancelar</button>
                     <button type="submit" class="btn-primary">

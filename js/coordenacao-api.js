@@ -30,7 +30,8 @@ const CoordenacaoApi = {
         return map;
     },
 
-    transformRelatorio(record, planoMap) {
+    transformRelatorio(record, planoMap, statusPorAtendimentoId) {
+        const atendimentoId = record.atendimento_id || null;
         return {
             id: record.id,
             tipo: record.tipo || 'Evolução',
@@ -38,7 +39,11 @@ const CoordenacaoApi = {
             autorNome: record.autor_nome || 'Autor não informado',
             data: record.data || '',
             conteudo: record.conteudo || '',
-            atendimentoId: record.atendimento_id || null,
+            atendimentoId,
+            // Status do atendimento vinculado (só existe pra tipo Evolução) --
+            // pré-preenche o seletor de status no modal de editar relatório
+            // (2026-09-17, ver openEditRelatorioModal em js/coordenacao.js).
+            statusAtendimento: atendimentoId ? statusPorAtendimentoId.get(atendimentoId) || null : null,
             editadoPor: record.editado_por_nome || '',
             planoSaude: planoMap.get(record.paciente_id) || '',
             // 2026-09-17: ciência do autor sobre alterações de terceiros —
@@ -53,12 +58,22 @@ const CoordenacaoApi = {
     // Edição de verdade de um relatório já existente — substitui o antigo
     // rascunho em sessionStorage (nunca persistia, a própria tela avisava
     // isso). editadoPorNome é sempre quem está logado fazendo a edição.
-    async editarRelatorio({ id, data, conteudo, editadoPorNome }) {
+    // statusPresenca é opcional (2026-09-17): permite corrigir junto o
+    // Status_Presenca do atendimento vinculado -- só relatório de tipo
+    // Evolução tem atendimento_id pra atualizar; o backend ignora
+    // silenciosamente se o relatório não tiver um (ver 21_editar_relatorio.json).
+    async editarRelatorio({ id, data, conteudo, editadoPorNome, statusPresenca }) {
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.RELATORIO_EDITAR}`;
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, data, conteudo, editado_por_nome: editadoPorNome }),
+            body: JSON.stringify({
+                id,
+                data,
+                conteudo,
+                editado_por_nome: editadoPorNome,
+                status_presenca: statusPresenca || null,
+            }),
         });
 
         if (!response.ok) {
@@ -99,8 +114,13 @@ const CoordenacaoApi = {
 
         const planoMap = this.buildPlanoMap(pacientes);
 
+        const statusPorAtendimentoId = new Map();
+        atendimentos.forEach((record) => {
+            if (record.id != null) statusPorAtendimentoId.set(record.id, record.status_presenca || 'Agendado');
+        });
+
         const relatoriosTransformados = relatorios
-            .map((record) => this.transformRelatorio(record, planoMap))
+            .map((record) => this.transformRelatorio(record, planoMap, statusPorAtendimentoId))
             .sort((a, b) => new Date(b.data) - new Date(a.data));
 
         const relatorioByAtendimentoId = new Map();
