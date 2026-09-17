@@ -26,8 +26,19 @@ const CONFIG = {
         // buscando tudo e filtrando no cliente, padrão estabelecido);
         // migrar pra filtro de servidor é trabalho futuro, não bloqueia nada.
         LISTAR_ATENDIMENTOS: '/listar/atendimentos',
+        // 2026-09-17: ganhou os mesmos filtros de servidor que
+        // /listar/atendimentos já tinha (paciente_id, autor_id, tipo,
+        // data_inicio, data_fim) — mesma ressalva: nenhuma tela ainda manda
+        // esses parâmetros, continua buscando tudo e filtrando no cliente.
         LISTAR_RELATORIOS: '/listar/relatorios',
         LISTAR_EQUIPES: '/listar/equipes',
+        // 2026-09-17: endpoints novos — Recorrência agora é tabela de
+        // verdade (era session-only, ver equitar-feature-state), e Planos/
+        // Especialidades ganharam listagem própria (antes só existiam via
+        // seed, sem nenhum jeito de consultar/cadastrar pela API).
+        LISTAR_RECORRENCIAS: '/listar/recorrencias',
+        LISTAR_PLANOS: '/listar/planos',
+        LISTAR_ESPECIALIDADES: '/listar/especialidades',
 
         // --- Criação (POST) ---
         // 2026-09-08: equipe_nome agora resolve de verdade pro equipe_id do
@@ -45,6 +56,14 @@ const CONFIG = {
         // dentro de conteudo (ver ApiService.buildRegisterPayload).
         RELATORIO_REGISTRAR: '/registrar/relatorio',
         ATENDIMENTO_CRIAR: '/criar/atendimento',
+        // 2026-09-17: novo — grava paciente_id/terapeuta_id (por nome,
+        // resolvido por subquery) + horario + dias_semana (array) numa
+        // query só, que insere em recorrencias e recorrencia_dias juntos.
+        RECORRENCIA_REGISTRAR: '/registrar/recorrencia',
+        // 2026-09-17: novos, upsert idempotente por nome (cadastrar de novo
+        // o mesmo nome só devolve o registro existente, sem erro).
+        PLANO_REGISTRAR: '/registrar/plano',
+        ESPECIALIDADE_REGISTRAR: '/registrar/especialidade',
 
         // 2026-09-08: resposta de sucesso agora vem completa em
         // {sucesso, mensagem, usuario:{id, nome, email, perfilRole,

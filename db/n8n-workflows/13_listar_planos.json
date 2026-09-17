@@ -1,0 +1,53 @@
+{
+  "id": "eqtr13ListarPlanos",
+  "name": "Equitar - GET /listar/planos",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0013-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "listar/planos",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_listar",
+      "name": "Listar Planos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT id, nome FROM planos ORDER BY nome",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond1",
+      "name": "Responder Lista",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Listar Planos", "type": "main", "index": 0 }]] },
+    "Listar Planos": { "main": [[{ "node": "Responder Lista", "type": "main", "index": 0 }]] }
+  }
+}

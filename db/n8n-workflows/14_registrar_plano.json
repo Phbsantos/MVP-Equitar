@@ -1,0 +1,55 @@
+{
+  "id": "eqtr14RegistrarPlano",
+  "name": "Equitar - POST /registrar/plano",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0014-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "registrar/plano",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_registrar",
+      "name": "Registrar Plano",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Upsert idempotente: cadastrar o mesmo plano duas vezes só devolve o\n-- que já existia, em vez de estourar erro de UNIQUE (nome).\nINSERT INTO planos (nome) VALUES ($1)\nON CONFLICT (nome) DO UPDATE SET nome = EXCLUDED.nome\nRETURNING id, nome",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.nome ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Plano registrado com sucesso.\", plano: { id: $json.id, nome: $json.nome } } }}",
+        "options": { "responseCode": 201 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Registrar Plano", "type": "main", "index": 0 }]] },
+    "Registrar Plano": { "main": [[{ "node": "Responder Sucesso", "type": "main", "index": 0 }]] }
+  }
+}

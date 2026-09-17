@@ -1,0 +1,55 @@
+{
+  "id": "eqtr11ListarRecorrencias",
+  "name": "Equitar - GET /listar/recorrencias",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0011-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "listar/recorrencias",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_listar",
+      "name": "Listar Recorrencias",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Recorrencias virou tabela de verdade na migração pra Postgres (antes\n-- rodava só em sessionStorage, sem endpoint nenhum). dias_semana vem\n-- agregado em ordem de semana (não alfabética/inserção) via a subquery\n-- com CASE.\nSELECT\n  r.id,\n  r.paciente_id,\n  p.nome_completo AS paciente_nome,\n  r.terapeuta_id,\n  t.nome AS terapeuta_nome,\n  r.horario::text AS horario,\n  r.duracao_minutos,\n  r.data_inicio,\n  r.data_fim,\n  r.status::text AS status,\n  COALESCE(\n    (SELECT array_agg(rd.dia_semana::text ORDER BY CASE rd.dia_semana\n        WHEN 'Segunda' THEN 1 WHEN 'Terça' THEN 2 WHEN 'Quarta' THEN 3\n        WHEN 'Quinta' THEN 4 WHEN 'Sexta' THEN 5 WHEN 'Sábado' THEN 6\n      END)\n     FROM recorrencia_dias rd WHERE rd.recorrencia_id = r.id),\n    ARRAY[]::text[]\n  ) AS dias_semana\nFROM recorrencias r\nJOIN pacientes p ON p.id = r.paciente_id\nJOIN usuarios t ON t.id = r.terapeuta_id\nWHERE ($1::int IS NULL OR r.paciente_id = $1)\n  AND ($2::int IS NULL OR r.terapeuta_id = $2)\n  AND ($3::text IS NULL OR r.status::text = $3)\nORDER BY r.data_inicio DESC, r.id DESC",
+        "options": {
+          "queryReplacement": "={{ [ $json.query.paciente_id || null, $json.query.terapeuta_id || null, $json.query.status || null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond1",
+      "name": "Responder Lista",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Listar Recorrencias", "type": "main", "index": 0 }]] },
+    "Listar Recorrencias": { "main": [[{ "node": "Responder Lista", "type": "main", "index": 0 }]] }
+  }
+}
