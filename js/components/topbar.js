@@ -37,6 +37,10 @@ const Topbar = {
                             <span class="badge badge--brand" id="user-chip-role">—</span>
                         </div>
                     </div>
+
+                    <button type="button" class="topbar-logout-btn" onclick="AuthApi.logout()" title="Sair" aria-label="Sair">
+                        <i data-lucide="log-out" class="w-[18px] h-[18px]"></i>
+                    </button>
                 </div>
             </div>
         `;

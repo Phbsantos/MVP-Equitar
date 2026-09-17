@@ -472,6 +472,23 @@ body {
 }
 .topbar-menu-btn:hover { background: var(--surface-alt); color: var(--ink); }
 
+/* Botão de logout da topbar — só existe no mobile (no desktop o "Sair" já
+   vive no rodapé do sidebar, sempre visível ali). */
+.topbar-logout-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-soft);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.topbar-logout-btn:hover { background: var(--surface-alt); color: var(--danger-600, #b91c1c); }
+
 .app-main {
   flex: 1;
   min-width: 0;
@@ -597,6 +614,7 @@ body {
   .sidebar-collapse-toggle { display: none; } /* só faz sentido no desktop */
 
   .topbar-menu-btn { display: flex; }
+  .topbar-logout-btn { display: flex; }
 }
 
 /* ---------- Cadastro de Recorrência: chips de dia da semana + grade ---------- */
