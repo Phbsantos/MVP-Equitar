@@ -5,6 +5,13 @@ let activeFilter = 'all';
 let isRecordingSim = false;
 let isLoading = false;
 let isSaving = false;
+let modelosEvolucao = [];
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
 
 function getSelectedDate() {
     return document.getElementById('selected-date').value;
@@ -381,6 +388,121 @@ function insertTemplate(type) {
 
     updateCharCount();
     showToast('Modelo de texto inserido!');
+}
+
+// Modelos de evolução PESSOAIS (2026-09-17) -- além dos 3 modelos fixos da
+// clínica acima, cada usuário cadastra os seus próprios atalhos de texto.
+// Carregados uma vez no boot (loadModelosEvolucao no DOMContentLoaded) e
+// mantidos em cache local; toda alteração (salvar/remover) recarrega do
+// servidor pra manter a lista e os botões em sincronia.
+async function loadModelosEvolucao() {
+    try {
+        modelosEvolucao = await ApiService.fetchModelosEvolucao();
+    } catch (error) {
+        console.error(error);
+        modelosEvolucao = [];
+    }
+    renderModelosEvolucaoBotoes();
+    renderModelosEvolucaoModalLista();
+}
+
+function renderModelosEvolucaoBotoes() {
+    const container = document.getElementById('modelos-evolucao-botoes');
+    if (!container) return;
+
+    container.innerHTML = modelosEvolucao
+        .map(
+            (m) => `
+        <button type="button" onclick="insertModeloEvolucao(${m.id})" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ ${escapeHtml(m.nome)}</button>
+    `
+        )
+        .join('');
+}
+
+function insertModeloEvolucao(id) {
+    const modelo = modelosEvolucao.find((m) => m.id === id);
+    if (!modelo) return;
+
+    const textarea = document.getElementById('clinical-notes');
+    if (textarea.value.trim().length > 0) {
+        textarea.value += `\n\n${modelo.conteudo}`;
+    } else {
+        textarea.value = modelo.conteudo;
+    }
+
+    updateCharCount();
+    showToast('Modelo de texto inserido!');
+}
+
+function openModelosEvolucaoModal() {
+    renderModelosEvolucaoModalLista();
+    document.getElementById('modelos-evolucao-modal').classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function closeModelosEvolucaoModal() {
+    document.getElementById('modelos-evolucao-modal').classList.add('hidden');
+    document.getElementById('form-novo-modelo-evolucao').reset();
+}
+
+function renderModelosEvolucaoModalLista() {
+    const container = document.getElementById('modelos-evolucao-modal-lista');
+    const empty = document.getElementById('modelos-evolucao-modal-empty');
+    if (!container || !empty) return;
+
+    empty.classList.toggle('hidden', modelosEvolucao.length > 0);
+
+    container.innerHTML = modelosEvolucao
+        .map(
+            (m) => `
+        <div class="flex items-start justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+            <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-800">${escapeHtml(m.nome)}</p>
+                <p class="text-[11px] text-slate-500 line-clamp-2">${escapeHtml(m.conteudo)}</p>
+            </div>
+            <button type="button" onclick="handleRemoverModeloEvolucao(${m.id})" class="text-rose-500 hover:text-rose-700 shrink-0" title="Remover">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
+    `
+        )
+        .join('');
+
+    lucide.createIcons();
+}
+
+async function handleNovoModeloEvolucaoSubmit(event) {
+    event.preventDefault();
+
+    const nome = document.getElementById('novo-modelo-nome').value.trim();
+    const conteudo = document.getElementById('novo-modelo-conteudo').value.trim();
+    if (!nome || !conteudo) return;
+
+    const submitBtn = document.getElementById('novo-modelo-submit-btn');
+    submitBtn.disabled = true;
+
+    try {
+        await ApiService.salvarModeloEvolucao(nome, conteudo);
+        showToast('Modelo salvo com sucesso.', 'success');
+        document.getElementById('form-novo-modelo-evolucao').reset();
+        await loadModelosEvolucao();
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao salvar modelo.', 'error');
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+
+async function handleRemoverModeloEvolucao(id) {
+    try {
+        await ApiService.removerModeloEvolucao(id);
+        showToast('Modelo removido.', 'success');
+        await loadModelosEvolucao();
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao remover modelo.', 'error');
+    }
 }
 
 function toggleVoiceSim() {
@@ -864,6 +986,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     loadSchedule();
+    loadModelosEvolucao();
     checkAtendimentosPendentesAnteriores();
     if (CONFIG.FEATURES.cienciaRelatorio) {
         checkRelatoriosPendentesCiencia();

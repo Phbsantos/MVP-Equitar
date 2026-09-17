@@ -190,6 +190,11 @@
                                 <button type="button" onclick="insertTemplate('padrao')" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ Geral</button>
                                 <button type="button" onclick="insertTemplate('avd')" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ AVDs</button>
                                 <button type="button" onclick="insertTemplate('sensorial')" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition">+ Integ. Sensorial</button>
+                                <div id="modelos-evolucao-botoes" class="flex items-center gap-1 flex-wrap"></div>
+                                <button type="button" onclick="openModelosEvolucaoModal()" class="template-btn text-[11px] bg-slate-100 hover:bg-clinical-50 text-slate-700 hover:text-clinical-700 border border-slate-200 px-2 py-0.5 rounded transition inline-flex items-center gap-1" title="Meus modelos de evolução pessoais">
+                                    <i data-lucide="settings" class="w-3 h-3"></i>
+                                    Meus Modelos
+                                </button>
                             </div>
                         </div>
 
@@ -338,6 +343,43 @@
                     <i data-lucide="check" class="w-3.5 h-3.5"></i>
                     Estou de acordo
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modelos-evolucao-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-5 h-5 text-clinical-600"></i>
+                        Meus Modelos de Evolução
+                    </h3>
+                    <p class="text-xs text-slate-500">Atalhos de texto pessoais para o relato de evolução — só você vê os seus.</p>
+                </div>
+                <button onclick="closeModelosEvolucaoModal()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                <div id="modelos-evolucao-modal-lista" class="space-y-2"></div>
+                <p id="modelos-evolucao-modal-empty" class="text-xs hidden" style="color:var(--ink-faint)">Você ainda não tem modelos pessoais cadastrados.</p>
+
+                <form id="form-novo-modelo-evolucao" onsubmit="handleNovoModeloEvolucaoSubmit(event)" class="space-y-2 pt-3 border-t border-slate-100">
+                    <div>
+                        <label class="form-label normal-case">Nome do modelo</label>
+                        <input type="text" id="novo-modelo-nome" placeholder="Ex: Fonoaudiologia - Padrão" required maxlength="60" class="form-input text-xs">
+                    </div>
+                    <div>
+                        <label class="form-label normal-case">Texto do modelo</label>
+                        <textarea id="novo-modelo-conteudo" rows="4" required placeholder="Texto que será inserido no relato ao clicar no botão..." class="form-input text-xs"></textarea>
+                    </div>
+                    <button type="submit" id="novo-modelo-submit-btn" class="btn-primary w-full justify-center text-xs">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        Salvar Modelo
+                    </button>
+                </form>
             </div>
         </div>
     </div>

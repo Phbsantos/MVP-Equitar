@@ -50,6 +50,10 @@ const CONFIG = {
         // paciente em cadastros.html, só Coordenador/Admin) — filtra por
         // ?paciente_id=.
         LISTAR_SUGESTOES_ATENDIMENTO: '/listar/sugestoes-atendimento',
+        // 2026-09-17: modelos de evolução pessoais (index.html, botões
+        // "Modelos:" acima do relato) -- filtra por ?usuario_id=, sempre o
+        // usuário logado (ver js/app.js).
+        LISTAR_MODELOS_EVOLUCAO: '/listar/modelos-evolucao',
 
         // --- Criação (POST) ---
         // 2026-09-08: equipe_nome agora resolve de verdade pro equipe_id do
@@ -93,6 +97,11 @@ const CONFIG = {
         // Coordenador/Admin — nova senha nunca fica em texto puro (hash
         // via pgcrypto no próprio workflow).
         USUARIO_RESETAR_SENHA: '/resetar/senha-usuario',
+        // 2026-09-17: upsert por (usuario_id, nome) -- salvar de novo o
+        // mesmo nome atualiza o conteúdo em vez de duplicar.
+        MODELO_EVOLUCAO_REGISTRAR: '/registrar/modelo-evolucao',
+        // DELETE, não POST -- remove um modelo por id (?id=).
+        MODELO_EVOLUCAO_REMOVER: '/remover/modelo-evolucao',
 
         // 2026-09-08: resposta de sucesso agora vem completa em
         // {sucesso, mensagem, usuario:{id, nome, email, perfilRole,

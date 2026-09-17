@@ -1,0 +1,55 @@
+{
+  "id": "eqtr24RegistrarModeloEvolucao",
+  "name": "Equitar - POST /registrar/modelo-evolucao",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0024-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "registrar/modelo-evolucao",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_registrar",
+      "name": "Registrar Modelo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Upsert por (usuario_id, nome) -- cadastrar de novo o mesmo nome pro\n-- mesmo usuário atualiza o conteúdo em vez de duplicar (mesmo padrão já\n-- usado em paciente_sugestoes_atendimento).\nINSERT INTO modelos_evolucao (usuario_id, nome, conteudo)\nVALUES ($1::int, $2, $3)\nON CONFLICT (usuario_id, nome)\nDO UPDATE SET conteudo = EXCLUDED.conteudo\nRETURNING id, usuario_id, nome, conteudo",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.usuario_id, $json.body.nome, $json.body.conteudo ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Modelo salvo com sucesso.\", modelo: { id: $json.id, usuarioId: $json.usuario_id, nome: $json.nome, conteudo: $json.conteudo } } }}",
+        "options": { "responseCode": 201 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Registrar Modelo", "type": "main", "index": 0 }]] },
+    "Registrar Modelo": { "main": [[{ "node": "Responder Sucesso", "type": "main", "index": 0 }]] }
+  }
+}

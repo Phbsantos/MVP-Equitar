@@ -259,6 +259,56 @@ const ApiService = {
     // "conteudo" agora carrega só a evolução/justificativa de verdade;
     // os outros campos vão soltos no payload e o workflow
     // /registrar/relatorio grava cada um na coluna certa.
+    // Modelos de evolução pessoais (2026-09-17) -- atalhos de texto que
+    // cada usuário cadastra pra si mesmo, além dos 3 modelos fixos da
+    // clínica (ver insertTemplate em js/app.js). Sempre filtrado pelo
+    // usuário logado; não existe conceito de listar de outra pessoa aqui.
+    async fetchModelosEvolucao() {
+        const session = AuthApi.getSession();
+        if (!session) return [];
+
+        const params = new URLSearchParams({ usuario_id: session.id });
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_MODELOS_EVOLUCAO}?${params.toString()}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar modelos de evolução (${response.status})`);
+        }
+
+        const data = await response.json();
+        const records = Array.isArray(data) ? data : [];
+        return records.map((record) => ({ id: record.id, nome: record.nome, conteudo: record.conteudo }));
+    },
+
+    async salvarModeloEvolucao(nome, conteudo) {
+        const session = AuthApi.getSession();
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.MODELO_EVOLUCAO_REGISTRAR}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario_id: session && session.id, nome, conteudo }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(errorText || `Erro ao salvar modelo (${response.status})`);
+        }
+
+        return response.json();
+    },
+
+    async removerModeloEvolucao(id) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.MODELO_EVOLUCAO_REMOVER}?id=${encodeURIComponent(id)}`;
+        const response = await fetch(url, { method: 'DELETE' });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(errorText || `Erro ao remover modelo (${response.status})`);
+        }
+
+        return response.json().catch(() => ({ sucesso: true }));
+    },
+
     buildRegisterPayload(patient, formData) {
         const isRealizado = formData.status === 'realizado';
         const isFaltaOuDesmarcado = formData.status === 'falta' || formData.status === 'desmarcado';
