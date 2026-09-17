@@ -1,0 +1,93 @@
+{
+  "id": "eqtr20ResetarSenhaUsuario",
+  "name": "Equitar - POST /resetar/senha-usuario",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0020-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "resetar/senha-usuario",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_resetar",
+      "name": "Resetar Senha",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Card \"Resetar Senha\" em cadastros.html (Usuário), só Coordenador/\n-- Admin. CTE + SELECT final garante sempre 1 linha de volta (mesmo se o\n-- id não existir), pra responder 404 limpo em vez de deixar o fluxo\n-- morrer com 0 itens. Senha nunca fica em texto puro -- hash via\n-- pgcrypto, igual no cadastro/seed.\nWITH atualizado AS (\n  UPDATE usuarios SET senha_hash = crypt($2, gen_salt('bf'))\n  WHERE id = $1::int\n  RETURNING id, nome\n)\nSELECT (SELECT id FROM atualizado) IS NOT NULL AS encontrado, (SELECT nome FROM atualizado) AS nome",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.usuario_id, $json.body.nova_senha ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "if_encontrado",
+      "name": "Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [520, 300],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.encontrado }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 }
+        }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Senha redefinida com sucesso.\", usuario: { id: $('Webhook').first().json.body.usuario_id, nome: $json.nome } } }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond_nao_encontrado",
+      "name": "Responder Nao Encontrado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 420],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: false, mensagem: \"Usuário não encontrado.\" } }}",
+        "options": { "responseCode": 404 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Resetar Senha", "type": "main", "index": 0 }]] },
+    "Resetar Senha": { "main": [[{ "node": "Encontrado?", "type": "main", "index": 0 }]] },
+    "Encontrado?": {
+      "main": [
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }],
+        [{ "node": "Responder Nao Encontrado", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

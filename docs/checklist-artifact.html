@@ -1,0 +1,692 @@
+<title>Equitar QA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #f5f4ee;
+    --surface: #ffffff;
+    --surface-alt: #eae7db;
+    --ink: #1c211f;
+    --ink-soft: #5a625c;
+    --ink-faint: #8b938c;
+    --border: #dcd8c9;
+    --accent: #0e6b62;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2f0ed;
+    --ok: #2f7d4f;
+    --ok-soft: #e4f2e9;
+    --warn: #a8721a;
+    --warn-soft: #faf0dc;
+    --danger: #b23b3b;
+    --danger-soft: #fbe9e7;
+    --shadow: 0 1px 2px rgba(20, 24, 22, 0.04), 0 6px 20px -8px rgba(20, 24, 22, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181a;
+      --surface: #1b2022;
+      --surface-alt: #232a2b;
+      --ink: #edf0ee;
+      --ink-soft: #aab3ae;
+      --ink-faint: #6d7773;
+      --border: #2e3536;
+      --accent: #52d6c6;
+      --accent-ink: #08211e;
+      --accent-soft: #16302c;
+      --ok: #74d493;
+      --ok-soft: #163524;
+      --warn: #e7b25a;
+      --warn-soft: #3a2c12;
+      --danger: #e6786f;
+      --danger-soft: #3a1e1c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #14181a;
+    --surface: #1b2022;
+    --surface-alt: #232a2b;
+    --ink: #edf0ee;
+    --ink-soft: #aab3ae;
+    --ink-faint: #6d7773;
+    --border: #2e3536;
+    --accent: #52d6c6;
+    --accent-ink: #08211e;
+    --accent-soft: #16302c;
+    --ok: #74d493;
+    --ok-soft: #163524;
+    --warn: #e7b25a;
+    --warn-soft: #3a2c12;
+    --danger: #e6786f;
+    --danger-soft: #3a1e1c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+
+  code, .mono {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  /* ---------- header / progress ---------- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    padding: 20px 0 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  .subhead {
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    margin: 0 0 18px;
+    max-width: 60ch;
+  }
+
+  .subhead a { color: var(--accent); }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--surface-alt);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+
+  .progress-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  .reset-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 9px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .reset-btn:hover { border-color: var(--ink-faint); color: var(--ink-soft); }
+  .reset-btn:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- credentials panel ---------- */
+  .creds {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+    margin-bottom: 28px;
+  }
+
+  .creds h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-faint);
+    margin: 0 0 10px;
+  }
+
+  .creds-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .creds-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    padding: 4px 0;
+    border-top: 1px solid var(--border);
+  }
+  .creds-row:first-child { border-top: none; padding-top: 0; }
+
+  .creds-email {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .creds-role {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .creds-detail { color: var(--ink-faint); font-size: 12.5px; }
+
+  .creds-pass {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .creds-pass code {
+    background: var(--surface-alt);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  /* ---------- sections ---------- */
+  .section {
+    margin-bottom: 22px;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 2px 8px;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .section-num {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink-faint);
+    font-size: 13px;
+  }
+
+  .section-title h3 {
+    font-size: 15.5px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .section-title .file {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-weight: 400;
+  }
+
+  .section-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 11px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .item:first-child { border-top: none; }
+
+  .item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border: 1.5px solid var(--ink-faint);
+    border-radius: 5px;
+    margin-top: 1px;
+    cursor: pointer;
+    position: relative;
+    background: var(--surface);
+  }
+
+  .item input[type="checkbox"]:checked {
+    background: var(--ok);
+    border-color: var(--ok);
+  }
+
+  .item input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: solid var(--surface);
+    border-width: 0 2px 2px 0;
+    transform: rotate(40deg);
+  }
+
+  .item label {
+    font-size: 13.5px;
+    color: var(--ink);
+    cursor: pointer;
+    flex: 1;
+  }
+
+  .item.checked label {
+    color: var(--ink-faint);
+    text-decoration: line-through;
+    text-decoration-color: var(--border);
+  }
+
+  .item label strong { font-weight: 600; color: var(--ink); }
+  .item.checked label strong { color: var(--ink-faint); }
+
+  .badge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    vertical-align: 1px;
+    margin-right: 2px;
+  }
+  .badge-warn { background: var(--warn-soft); color: var(--warn); }
+  .badge-new { background: var(--accent-soft); color: var(--accent); }
+
+  .section-note {
+    font-size: 12px;
+    color: var(--ink-faint);
+    padding: 2px 2px 10px;
+  }
+
+  /* ---------- notes / footer ---------- */
+  .notes {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+    margin-top: 30px;
+  }
+
+  .notes h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-faint);
+    margin: 0 0 4px;
+  }
+
+  .notes p {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: 0 0 10px;
+  }
+
+  .notes textarea {
+    width: 100%;
+    min-height: 120px;
+    resize: vertical;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  .save-hint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    text-align: right;
+    margin-top: 6px;
+    min-height: 14px;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    margin-top: 28px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <p class="eyebrow">Migração Postgres + n8n · VPS</p>
+    <h1>Checklist de testes — Equitar</h1>
+    <p class="subhead">Validação manual do app de verdade no navegador, contra <code>https://38-72-132-152.sslip.io</code>. Cada endpoint já foi testado por curl durante a migração — esta lista cobre o fluxo de usuário real.</p>
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <span class="progress-count" id="progress-count">0 / 0</span>
+      <button class="reset-btn" id="reset-btn" type="button">Reiniciar</button>
+    </div>
+  </div>
+
+  <div class="creds">
+    <h2>Usuários de teste (seed)</h2>
+    <div class="creds-grid" id="creds-grid"></div>
+    <p class="creds-pass">Senha de todos: <code>trocar123</code></p>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="notes">
+    <h2>Anotações / falhas encontradas</h2>
+    <p>Pra cada item que falhar: tela, o que fez, o que esperava, o que aconteceu — e se possível a mensagem do console (F12 → Console) ou da resposta HTTP na aba Network.</p>
+    <textarea id="notes-area" placeholder="Ex: [Coordenação › Relatórios] Exportar PDF não abre a janela de impressão. Console: Uncaught TypeError..."></textarea>
+    <div class="save-hint" id="save-hint"></div>
+  </div>
+
+  <footer>salvo automaticamente neste navegador</footer>
+</div>
+
+<script>
+  const CREDENTIALS = [
+    { email: 'fernanda.duarte@equitar.com.br', role: 'Terapeuta', detail: 'Fonoaudiologia · Equipe Manhã' },
+    { email: 'rafael.nogueira@equitar.com.br', role: 'Terapeuta', detail: 'Psicologia · Equipe Manhã' },
+    { email: 'camila.alves@equitar.com.br', role: 'Supervisor', detail: 'Terapia Ocupacional · Equipe Manhã' },
+    { email: 'bruno.castro@equitar.com.br', role: 'Terapeuta', detail: 'Psicomotricidade · Equipe Tarde' },
+    { email: 'juliana.prado@equitar.com.br', role: 'Supervisor', detail: 'Fonoaudiologia · Equipe Tarde' },
+    { email: 'marcos.teixeira@equitar.com.br', role: 'Coordenador', detail: '' },
+    { email: 'ana.lima@equitar.com.br', role: 'Admin', detail: '' },
+  ];
+
+  const SECTIONS = [
+    {
+      title: 'Login e sessão',
+      items: [
+        'Login com e-mail/senha corretos (<strong>fernanda.duarte@equitar.com.br</strong> / trocar123) — entra e vai pra tela certa (Terapeuta → index.html).',
+        'Login com senha errada — mensagem de erro clara, não trava a tela.',
+        'Login com e-mail que não existe — mesma mensagem de erro (não deve dizer "e-mail não encontrado" especificamente).',
+        'Depois de logado, dá refresh (F5) — continua logado (sessão não se perde).',
+        'Logout — volta pra tela de login, e acessar uma página interna direto pela URL redireciona pro login.',
+        'Login com cada perfil (Terapeuta, Supervisor, Coordenador, Admin) — cada um cai/tem acesso à página certa.',
+      ],
+    },
+    {
+      title: 'Agenda do Terapeuta',
+      file: 'index.html',
+      items: [
+        'Login como Fernanda Duarte — a agenda do dia mostra os atendimentos dela (não de outro terapeuta).',
+        'Abrir um atendimento "Realizado" do passado — evolução aparece certinha, sem poder editar (trava após Realizado).',
+        'Fechar um atendimento "Agendado" como <strong>Realizado</strong> — preencher evolução, engajamento, recomendação — salva e reflete na tela.',
+        '<span class="badge badge-warn">bug antigo</span> Fechar um atendimento como <strong>Falta sem Aviso</strong> ou <strong>Desmarcado com Aviso</strong> — confirmar que o status realmente muda pra isso (não vira "Realizado" à força).',
+        'Navegar entre dias na agenda — muda a lista corretamente.',
+      ],
+    },
+    {
+      title: 'Cadastros — Paciente',
+      file: 'cadastros.html',
+      items: [
+        'Cadastrar um paciente novo, preenchendo terapeuta responsável e plano de saúde — salva sem erro.',
+        'O paciente cadastrado aparece na lista/autocomplete em outras telas (ex: ao criar recorrência).',
+      ],
+    },
+    {
+      title: 'Cadastros — Usuário',
+      file: 'cadastros.html',
+      items: [
+        'Cadastrar um usuário novo (Terapeuta ou Supervisor) — salva sem erro.',
+        'O usuário novo já consegue fazer login com a senha definida no cadastro.',
+      ],
+    },
+    {
+      title: 'Cadastros — Sugestões de Atendimento',
+      file: 'cadastros.html',
+      note: 'Card novo, visível só pra Coordenador/Admin, dentro da aba Paciente.',
+      items: [
+        '<span class="badge badge-new">novo</span> Buscar um paciente existente abre o card de sugestões.',
+        'Adicionar uma sugestão (especialidade + quantidade + periodicidade) — salva e aparece na lista.',
+        'Adicionar de novo a mesma especialidade pro mesmo paciente — atualiza a quantidade em vez de duplicar.',
+        'Remover uma sugestão — some da lista.',
+        'Logar como Terapeuta ou Supervisor — o card não aparece em nenhum lugar.',
+      ],
+    },
+    {
+      title: 'Cadastros — Recorrência',
+      file: 'cadastros.html',
+      note: 'Ativada de verdade nesta rodada (antes era só sessionStorage) — testar com atenção.',
+      items: [
+        '<span class="badge badge-new">novo</span> Preencher o formulário (paciente, terapeuta, dias da semana, horário, duração, data de início, semanas) e salvar.',
+        'Toast de sucesso mostra quantos atendimentos foram gerados.',
+        'A recorrência aparece na lista abaixo do formulário, com os dias/horário certos.',
+        'A recorrência aparece como bloco na grade semanal, no dia/horário certo.',
+        '<strong>Importante:</strong> abrir a agenda do terapeuta escolhido (ou a Coordenação) e confirmar que os atendimentos futuros gerados pela recorrência aparecem, nas datas certas.',
+        'Dar refresh na aba (F5) — a recorrência continua aparecendo (vem do backend agora, não some mais).',
+        '<span class="badge badge-warn">removido</span> Arrastar um card na grade — não deve mais funcionar (sem endpoint de atualização ainda).',
+      ],
+    },
+    {
+      title: 'Painel de Coordenação',
+      file: 'coordenacao.html',
+      items: [
+        'Login como Marcos Teixeira (Coordenador) ou Ana Beatriz Lima (Admin).',
+        'Aba <strong>Atendimentos</strong>: lista carrega, filtros funcionam (com/sem evolução, data, etc.).',
+        'Aba <strong>Relatórios</strong>: filtros funcionam, exportação em PDF/Word/XML funciona pra um paciente só.',
+        'Aba <strong>Indicadores</strong>: KPIs carregam, tabela por terapeuta/paciente aparece, risco de faltas consecutivas calculado.',
+        'Botão flutuante (FAB) de atendimento avulso aparece <strong>só</strong> pro Coordenador (não pro Admin).',
+        'Atalhos do FAB pras abas de Cadastros (paciente/usuário/recorrência) abrem a aba certa.',
+      ],
+    },
+    {
+      title: 'Painel do Supervisor',
+      file: 'supervisor.html',
+      items: [
+        'Login como Camila Alves ou Juliana Prado (Supervisor).',
+        'A agenda mostra só os atendimentos da equipe daquele supervisor (Camila → Equipe Manhã; Juliana → Equipe Tarde).',
+        'Agendar uma sessão avulsa pela tela do supervisor — salva e aparece na agenda.',
+      ],
+    },
+    {
+      title: 'Relatórios',
+      file: 'relatorios.html',
+      items: [
+        'Lista de relatórios carrega.',
+        'Modal de relatório avulso (usado também em index.html/supervisor.html) salva corretamente.',
+      ],
+    },
+    {
+      title: 'Geral / sidebar / responsividade',
+      items: [
+        'Sidebar colapsa/expande no desktop e o estado persiste depois de F5.',
+        'Em tela estreita (celular/tablet, ≤900px), sidebar vira menu off-canvas com botão hambúrguer.',
+        'Trocar de tema (claro/escuro, se aplicável) funciona em todas as páginas.',
+      ],
+    },
+  ];
+
+  const STORAGE_KEY = 'equitar-qa-checklist-v1';
+
+  function loadState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { checked: {}, notes: '' };
+    } catch (e) {
+      return { checked: {}, notes: '' };
+    }
+  }
+
+  function saveState(state) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      // localStorage indisponível — segue funcionando só nesta sessão.
+    }
+  }
+
+  let state = loadState();
+  let totalItems = 0;
+
+  function updateProgress() {
+    const checkedCount = Object.values(state.checked).filter(Boolean).length;
+    const pct = totalItems ? Math.round((checkedCount / totalItems) * 100) : 0;
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-count').textContent = checkedCount + ' / ' + totalItems;
+  }
+
+  function renderCredentials() {
+    const grid = document.getElementById('creds-grid');
+    grid.innerHTML = CREDENTIALS.map((c) => `
+      <div class="creds-row">
+        <span class="creds-email">${c.email}</span>
+        <span class="creds-role">${c.role}</span>
+        ${c.detail ? `<span class="creds-detail">— ${c.detail}</span>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function renderSections() {
+    const container = document.getElementById('sections');
+    let html = '';
+
+    SECTIONS.forEach((section, sIdx) => {
+      const sectionNum = String(sIdx + 1).padStart(2, '0');
+      let sectionTotal = section.items.length;
+      totalItems += sectionTotal;
+
+      html += `<div class="section">
+        <div class="section-head">
+          <div class="section-title">
+            <span class="section-num">${sectionNum}</span>
+            <h3>${section.title}</h3>
+            ${section.file ? `<span class="file">${section.file}</span>` : ''}
+          </div>
+          <span class="section-count" data-section-count="${sIdx}"></span>
+        </div>
+        ${section.note ? `<p class="section-note">${section.note}</p>` : ''}
+        <div class="card">`;
+
+      section.items.forEach((text, iIdx) => {
+        const id = `s${sIdx}-i${iIdx}`;
+        const checked = Boolean(state.checked[id]);
+        html += `
+          <div class="item${checked ? ' checked' : ''}" data-item="${id}">
+            <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}>
+            <label for="${id}">${text}</label>
+          </div>`;
+      });
+
+      html += `</div></div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function updateSectionCounts() {
+    SECTIONS.forEach((section, sIdx) => {
+      const checkedInSection = section.items.filter((_, iIdx) => state.checked[`s${sIdx}-i${iIdx}`]).length;
+      const el = document.querySelector(`[data-section-count="${sIdx}"]`);
+      if (el) el.textContent = `${checkedInSection} / ${section.items.length}`;
+    });
+  }
+
+  function attachHandlers() {
+    document.querySelectorAll('.item input[type="checkbox"]').forEach((box) => {
+      box.addEventListener('change', () => {
+        const itemId = box.closest('.item').dataset.item;
+        state.checked[itemId] = box.checked;
+        box.closest('.item').classList.toggle('checked', box.checked);
+        saveState(state);
+        updateProgress();
+        updateSectionCounts();
+      });
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if (!confirm('Desmarcar todos os itens e apagar as anotações?')) return;
+      state = { checked: {}, notes: '' };
+      saveState(state);
+      renderSections();
+      attachHandlers();
+      updateProgress();
+      updateSectionCounts();
+      notesArea.value = '';
+    });
+
+    const notesArea = document.getElementById('notes-area');
+    notesArea.value = state.notes || '';
+    let saveTimeout;
+    notesArea.addEventListener('input', () => {
+      state.notes = notesArea.value;
+      saveState(state);
+      const hint = document.getElementById('save-hint');
+      hint.textContent = 'salvo';
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => { hint.textContent = ''; }, 1200);
+    });
+  }
+
+  renderCredentials();
+  renderSections();
+  attachHandlers();
+  updateProgress();
+  updateSectionCounts();
+</script>

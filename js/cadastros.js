@@ -166,6 +166,14 @@ async function loadEquipesOptions() {
     }
 }
 
+// Critério de acesso compartilhado pelos cards administrativos desta
+// página (Sugestões de Atendimento, Resetar Senha) — Coordenador ou Admin,
+// igual decidido com a Roseane pro card de sugestões (2026-09-17).
+function usuarioTemAcessoAdministrativo() {
+    const session = AuthApi.getSession();
+    return Boolean(session && ['Coordenador', 'Admin'].includes(session.perfilRole));
+}
+
 // -----------------------------------------------------------------------
 // Card "Sugestões de Atendimento" por paciente — visível só pra
 // Coordenador/Admin (2026-09-17). paciente_sugestoes_atendimento é
@@ -174,11 +182,6 @@ async function loadEquipesOptions() {
 // -----------------------------------------------------------------------
 let sugestaoBuscaPacienteAutocomplete = null;
 let sugestaoPacienteSelecionado = null; // { id, label }
-
-function podeVerSugestoesAtendimento() {
-    const session = AuthApi.getSession();
-    return Boolean(session && ['Coordenador', 'Admin'].includes(session.perfilRole));
-}
 
 async function renderSugestoesLista() {
     const container = document.getElementById('sugestao-lista');
@@ -257,7 +260,7 @@ async function initCardSugestoesPaciente() {
     const card = document.getElementById('card-sugestoes-paciente');
     if (!card) return;
 
-    if (!podeVerSugestoesAtendimento()) {
+    if (!usuarioTemAcessoAdministrativo()) {
         card.classList.add('hidden');
         return;
     }
@@ -284,12 +287,91 @@ async function initCardSugestoesPaciente() {
     }
 }
 
+// -----------------------------------------------------------------------
+// Card "Resetar Senha de Usuário" — visível só pra Coordenador/Admin
+// (2026-09-17). Não existe fluxo de e-mail nenhum no app: a senha nova é
+// gerada ou digitada aqui mesmo, e quem está resetando precisa informar o
+// usuário diretamente por fora.
+// -----------------------------------------------------------------------
+let resetBuscaUsuarioAutocomplete = null;
+let resetUsuarioSelecionado = null; // { id, label }
+
+// Exclui caracteres ambíguos (I, l, 1, 0, O) — essa senha costuma ser lida
+// em voz alta ou digitada por outra pessoa.
+function gerarSenhaAleatoria(tamanho = 10) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    const bytes = new Uint32Array(tamanho);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+}
+
+function handleGerarSenha() {
+    document.getElementById('reset-nova-senha').value = gerarSenhaAleatoria();
+}
+
+async function handleResetarSenhaSubmit(event) {
+    event.preventDefault();
+    if (!resetUsuarioSelecionado) return;
+
+    const novaSenha = document.getElementById('reset-nova-senha').value;
+    const submitBtn = document.getElementById('reset-submit-btn');
+    submitBtn.disabled = true;
+
+    try {
+        await CadastroApi.resetarSenhaUsuario(
+            CadastroApi.buildResetarSenhaPayload({
+                usuarioId: resetUsuarioSelecionado.id,
+                novaSenha,
+            })
+        );
+        showToast(`Senha de ${resetUsuarioSelecionado.label} redefinida — informe a nova senha a ela(e).`, 'success');
+        document.getElementById('form-resetar-senha').classList.add('hidden');
+        document.getElementById('reset-busca-usuario').value = '';
+        resetBuscaUsuarioAutocomplete.clear();
+        resetUsuarioSelecionado = null;
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao resetar senha.', 'error');
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+
+async function initCardResetarSenha() {
+    const card = document.getElementById('card-resetar-senha');
+    if (!card) return;
+
+    if (!usuarioTemAcessoAdministrativo()) {
+        card.classList.add('hidden');
+        return;
+    }
+    card.classList.remove('hidden');
+
+    try {
+        const usuarios = await UsuariosApi.fetchUsuarios();
+
+        resetBuscaUsuarioAutocomplete = attachAutocomplete(document.getElementById('reset-busca-usuario'), {
+            options: usuarios.map((u) => ({ id: u.id, label: u.nome, sublabel: u.perfilRole || '' })),
+            onSelect: (opt) => {
+                resetUsuarioSelecionado = opt;
+                document.getElementById('reset-usuario-nome').textContent = opt.label;
+                document.getElementById('reset-nova-senha').value = '';
+                document.getElementById('form-resetar-senha').classList.remove('hidden');
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao carregar lista de usuários.', 'error');
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     terapeutaAutocomplete = attachAutocomplete(document.getElementById('paciente-terapeuta-responsavel'), { options: [] });
     loadTerapeutasOptions();
     loadEquipesOptions();
     initCardSugestoesPaciente();
+    initCardResetarSenha();
 
     // Permite linkar direto pra uma aba, ex: cadastros.html?tab=recorrencia
     // (usado pelo FAB de ações rápidas do Coordenador em coordenacao.html)

@@ -240,4 +240,21 @@ const CadastroApi = {
 
         return response.json().catch(() => ({ sucesso: true }));
     },
+
+    // Resetar senha (2026-09-17): card em cadastros.html (Usuário), só
+    // Coordenador/Admin (ver js/cadastros.js). A senha nova é gerada ou
+    // digitada na UI e enviada em texto puro só nesta chamada — o backend
+    // já grava como hash (pgcrypto), nunca fica salva em claro em lugar
+    // nenhum, igual o cadastro normal de usuário.
+    buildResetarSenhaPayload(formData) {
+        return {
+            usuario_id: formData.usuarioId,
+            nova_senha: formData.novaSenha,
+        };
+    },
+
+    async resetarSenhaUsuario(payload) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.USUARIO_RESETAR_SENHA}`;
+        return this.postJson(url, payload);
+    },
 };

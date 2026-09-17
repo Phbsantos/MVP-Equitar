@@ -201,7 +201,6 @@
                     <select id="usuario-equipe" class="form-input">
                         <option value="">Sem equipe / não se aplica</option>
                     </select>
-                    <p class="text-[11px] mt-1" style="color:var(--warn)">O vínculo com a equipe ainda não é gravado automaticamente pela API — confira depois no Airtable.</p>
                 </div>
 
                 <div class="pt-2 flex justify-end">
@@ -211,6 +210,45 @@
                     </button>
                 </div>
             </form>
+
+            <!-- Resetar senha — visível só pra Coordenador/Admin (ver
+                 initCardResetarSenha em js/cadastros.js). Senha nunca fica
+                 em texto puro em lugar nenhum além desta chamada -- o
+                 backend grava como hash (pgcrypto). -->
+            <div id="card-resetar-senha" class="hidden mt-6 pt-6 border-t" style="border-color:var(--border)">
+                <h2 class="font-bold text-slate-900 text-base mb-1 flex items-center gap-2">
+                    <i data-lucide="key-round" class="w-5 h-5 text-clinical-600"></i>
+                    Resetar Senha de Usuário
+                </h2>
+                <p class="text-xs mb-4" style="color:var(--ink-soft)">Visível só para Coordenação. Gere uma senha nova ou digite uma, e informe o usuário diretamente — ela não é reenviada por e-mail.</p>
+
+                <div class="mb-4">
+                    <label class="form-label">Buscar usuário</label>
+                    <input type="text" id="reset-busca-usuario" placeholder="Digite o nome do usuário..." class="form-input">
+                </div>
+
+                <form id="form-resetar-senha" onsubmit="handleResetarSenhaSubmit(event)" class="hidden space-y-3 pt-4 border-t" style="border-color:var(--border)">
+                    <p class="text-sm font-semibold" id="reset-usuario-nome" style="color:var(--ink)"></p>
+
+                    <div>
+                        <label class="form-label">Nova senha</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="reset-nova-senha" required minlength="6" placeholder="Digite ou gere uma senha" class="form-input">
+                            <button type="button" onclick="handleGerarSenha()" class="btn-secondary shrink-0" title="Gerar senha aleatória">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-[11px] mt-1" style="color:var(--ink-faint)">Mínimo 6 caracteres. Copie antes de salvar — ela não aparece de novo depois.</p>
+                    </div>
+
+                    <div class="pt-1 flex justify-end">
+                        <button type="submit" id="reset-submit-btn" class="btn-primary">
+                            <i data-lucide="key-round" class="w-4 h-4"></i>
+                            Resetar Senha
+                        </button>
+                    </div>
+                </form>
+            </div>
         </section>
 
         <section id="tab-recorrencia" class="hidden space-y-4">

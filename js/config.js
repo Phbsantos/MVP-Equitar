@@ -74,6 +74,10 @@ const CONFIG = {
         SUGESTAO_ATENDIMENTO_REGISTRAR: '/registrar/sugestao-atendimento',
         // DELETE, não POST — remove uma sugestão por id (?id=).
         SUGESTAO_ATENDIMENTO_REMOVER: '/remover/sugestao-atendimento',
+        // 2026-09-17: card "Resetar Senha" em cadastros.html (Usuário), só
+        // Coordenador/Admin — nova senha nunca fica em texto puro (hash
+        // via pgcrypto no próprio workflow).
+        USUARIO_RESETAR_SENHA: '/resetar/senha-usuario',
 
         // 2026-09-08: resposta de sucesso agora vem completa em
         // {sucesso, mensagem, usuario:{id, nome, email, perfilRole,
