@@ -1,0 +1,7 @@
+# Credenciais reais — nunca versionar. Use os arquivos *.example.json como
+# referência de formato; o arquivo de verdade (com senha real) fica só
+# local/na VPS, nunca commitado.
+db/n8n-workflows/_reference/credential_postgres.json
+db/n8n-workflows/_reference/credential_*.local.json
+*.env
+.env.local
