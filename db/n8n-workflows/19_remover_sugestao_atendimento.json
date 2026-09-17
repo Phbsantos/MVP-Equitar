@@ -1,0 +1,93 @@
+{
+  "id": "eqtr19RemoverSugestaoAtendimento",
+  "name": "Equitar - DELETE /remover/sugestao-atendimento",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0019-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "remover/sugestao-atendimento",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_remover",
+      "name": "Remover Sugestao",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- CTE + SELECT final garante sempre 1 linha de volta (mesmo se o id não\n-- existir), pra poder responder 404 de forma limpa em vez de deixar o\n-- fluxo morrer com 0 itens.\nWITH removido AS (\n  DELETE FROM paciente_sugestoes_atendimento WHERE id = $1::int\n  RETURNING id\n)\nSELECT (SELECT id FROM removido) IS NOT NULL AS encontrado",
+        "options": {
+          "queryReplacement": "={{ [ $json.query.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "if_encontrado",
+      "name": "Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [520, 300],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.encontrado }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 }
+        }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Sugestão removida com sucesso.\" } }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond_nao_encontrado",
+      "name": "Responder Nao Encontrado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 420],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: false, mensagem: \"Sugestão não encontrada.\" } }}",
+        "options": { "responseCode": 404 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Remover Sugestao", "type": "main", "index": 0 }]] },
+    "Remover Sugestao": { "main": [[{ "node": "Encontrado?", "type": "main", "index": 0 }]] },
+    "Encontrado?": {
+      "main": [
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }],
+        [{ "node": "Responder Nao Encontrado", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "id": "eqtr18RegistrarSugestaoAtendimento",
+  "name": "Equitar - POST /registrar/sugestao-atendimento",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0018-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "registrar/sugestao-atendimento",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_registrar",
+      "name": "Registrar Sugestao",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Upsert por (paciente_id, especialidade_id) -- cadastrar de novo a\n-- mesma especialidade pro mesmo paciente atualiza quantidade/\n-- periodicidade/observacoes em vez de dar erro de UNIQUE. paciente_id e\n-- especialidade_id vêm direto da UI (autocomplete/select já resolvidos\n-- em ID -- não precisa resolver por nome aqui).\nINSERT INTO paciente_sugestoes_atendimento (paciente_id, especialidade_id, quantidade, periodicidade, observacoes)\nVALUES ($1::int, $2::int, $3::int, $4::periodicidade, NULLIF($5, ''))\nON CONFLICT (paciente_id, especialidade_id)\nDO UPDATE SET quantidade = EXCLUDED.quantidade, periodicidade = EXCLUDED.periodicidade, observacoes = EXCLUDED.observacoes\nRETURNING id, paciente_id, especialidade_id, quantidade, periodicidade::text AS periodicidade, observacoes",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.paciente_id, $json.body.especialidade_id, $json.body.quantidade, $json.body.periodicidade, $json.body.observacoes || '' ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Sugestão registrada com sucesso.\", sugestao: { id: $json.id, pacienteId: $json.paciente_id, especialidadeId: $json.especialidade_id, quantidade: $json.quantidade, periodicidade: $json.periodicidade, observacoes: $json.observacoes } } }}",
+        "options": { "responseCode": 201 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Registrar Sugestao", "type": "main", "index": 0 }]] },
+    "Registrar Sugestao": { "main": [[{ "node": "Responder Sucesso", "type": "main", "index": 0 }]] }
+  }
+}

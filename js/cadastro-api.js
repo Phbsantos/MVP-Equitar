@@ -170,4 +170,74 @@ const CadastroApi = {
         const records = Array.isArray(data) ? data : [];
         return records.map((record) => this.transformRecorrencia(record));
     },
+
+    async fetchEspecialidades() {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ESPECIALIDADES}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar especialidades (${response.status})`);
+        }
+
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+    },
+
+    // Sugestão de atendimento por paciente (2026-09-17): card do paciente em
+    // cadastros.html, visível só pra Coordenador/Admin (ver js/cadastros.js).
+    // paciente_id/especialidade_id vêm direto da UI (autocomplete/select já
+    // resolvidos em ID), diferente de outros cadastros que ainda resolvem
+    // por nome — aqui a tela sempre tem o ID à mão.
+    transformSugestao(record) {
+        return {
+            id: record.id,
+            pacienteId: record.paciente_id,
+            pacienteNome: record.paciente_nome,
+            especialidadeId: record.especialidade_id,
+            especialidadeNome: record.especialidade_nome,
+            quantidade: record.quantidade,
+            periodicidade: record.periodicidade,
+            observacoes: record.observacoes || '',
+        };
+    },
+
+    async fetchSugestoesPaciente(pacienteId) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_SUGESTOES_ATENDIMENTO}?paciente_id=${encodeURIComponent(pacienteId)}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar sugestões (${response.status})`);
+        }
+
+        const data = await response.json();
+        const records = Array.isArray(data) ? data : [];
+        return records.map((record) => this.transformSugestao(record));
+    },
+
+    buildSugestaoPayload(formData) {
+        return {
+            paciente_id: formData.pacienteId,
+            especialidade_id: formData.especialidadeId,
+            quantidade: formData.quantidade,
+            periodicidade: formData.periodicidade,
+            observacoes: formData.observacoes || '',
+        };
+    },
+
+    async registrarSugestao(payload) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.SUGESTAO_ATENDIMENTO_REGISTRAR}`;
+        return this.postJson(url, payload);
+    },
+
+    async removerSugestao(id) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.SUGESTAO_ATENDIMENTO_REMOVER}?id=${encodeURIComponent(id)}`;
+        const response = await fetch(url, { method: 'DELETE' });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(errorText || `Erro ao remover sugestão (${response.status})`);
+        }
+
+        return response.json().catch(() => ({ sucesso: true }));
+    },
 };

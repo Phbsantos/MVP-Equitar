@@ -39,6 +39,10 @@ const CONFIG = {
         LISTAR_RECORRENCIAS: '/listar/recorrencias',
         LISTAR_PLANOS: '/listar/planos',
         LISTAR_ESPECIALIDADES: '/listar/especialidades',
+        // 2026-09-17: sugestão de atendimento por paciente (card do
+        // paciente em cadastros.html, só Coordenador/Admin) — filtra por
+        // ?paciente_id=.
+        LISTAR_SUGESTOES_ATENDIMENTO: '/listar/sugestoes-atendimento',
 
         // --- Criação (POST) ---
         // 2026-09-08: equipe_nome agora resolve de verdade pro equipe_id do
@@ -64,6 +68,12 @@ const CONFIG = {
         // o mesmo nome só devolve o registro existente, sem erro).
         PLANO_REGISTRAR: '/registrar/plano',
         ESPECIALIDADE_REGISTRAR: '/registrar/especialidade',
+        // 2026-09-17: upsert por (paciente_id, especialidade_id) — salvar
+        // de novo a mesma especialidade pro mesmo paciente atualiza a
+        // quantidade/periodicidade em vez de duplicar.
+        SUGESTAO_ATENDIMENTO_REGISTRAR: '/registrar/sugestao-atendimento',
+        // DELETE, não POST — remove uma sugestão por id (?id=).
+        SUGESTAO_ATENDIMENTO_REMOVER: '/remover/sugestao-atendimento',
 
         // 2026-09-08: resposta de sucesso agora vem completa em
         // {sucesso, mensagem, usuario:{id, nome, email, perfilRole,

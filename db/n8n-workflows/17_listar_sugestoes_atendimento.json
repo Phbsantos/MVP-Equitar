@@ -1,0 +1,55 @@
+{
+  "id": "eqtr17ListarSugestoesAtendimento",
+  "name": "Equitar - GET /listar/sugestoes-atendimento",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0017-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "listar/sugestoes-atendimento",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_listar",
+      "name": "Listar Sugestoes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- paciente_sugestoes_atendimento (feature nova, 2026-09-07): sugestão/\n-- autorização de quantidade de atendimento por especialidade, individual\n-- por paciente (não por plano de saúde). Card do paciente em\n-- cadastros.html só é visível pra Coordenador/Admin.\nSELECT\n  s.id,\n  s.paciente_id,\n  p.nome_completo AS paciente_nome,\n  s.especialidade_id,\n  e.nome AS especialidade_nome,\n  s.quantidade,\n  s.periodicidade::text AS periodicidade,\n  s.observacoes\nFROM paciente_sugestoes_atendimento s\nJOIN pacientes p ON p.id = s.paciente_id\nJOIN especialidades e ON e.id = s.especialidade_id\nWHERE ($1::int IS NULL OR s.paciente_id = $1)\nORDER BY e.nome",
+        "options": {
+          "queryReplacement": "={{ [ $json.query.paciente_id || null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond1",
+      "name": "Responder Lista",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Listar Sugestoes", "type": "main", "index": 0 }]] },
+    "Listar Sugestoes": { "main": [[{ "node": "Responder Lista", "type": "main", "index": 0 }]] }
+  }
+}

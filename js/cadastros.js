@@ -166,11 +166,130 @@ async function loadEquipesOptions() {
     }
 }
 
+// -----------------------------------------------------------------------
+// Card "Sugestões de Atendimento" por paciente — visível só pra
+// Coordenador/Admin (2026-09-17). paciente_sugestoes_atendimento é
+// individual por paciente, não um modelo por Plano — ver decisão
+// registrada no esquema do banco.
+// -----------------------------------------------------------------------
+let sugestaoBuscaPacienteAutocomplete = null;
+let sugestaoPacienteSelecionado = null; // { id, label }
+
+function podeVerSugestoesAtendimento() {
+    const session = AuthApi.getSession();
+    return Boolean(session && ['Coordenador', 'Admin'].includes(session.perfilRole));
+}
+
+async function renderSugestoesLista() {
+    const container = document.getElementById('sugestao-lista');
+    const empty = document.getElementById('sugestao-empty');
+    if (!container || !empty || !sugestaoPacienteSelecionado) return;
+
+    const sugestoes = await CadastroApi.fetchSugestoesPaciente(sugestaoPacienteSelecionado.id);
+
+    if (sugestoes.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+
+    empty.classList.add('hidden');
+    container.innerHTML = sugestoes
+        .map(
+            (s) => `
+        <div class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg" style="background:var(--surface-alt)">
+            <div class="text-sm">
+                <span class="font-semibold" style="color:var(--ink)">${escapeHtml(s.especialidadeNome)}</span>
+                <span style="color:var(--ink-soft)"> — ${s.quantidade}x / ${s.periodicidade === 'mensal' ? 'mês' : 'semana'}</span>
+                ${s.observacoes ? `<p class="text-xs mt-0.5" style="color:var(--ink-faint)">${escapeHtml(s.observacoes)}</p>` : ''}
+            </div>
+            <button type="button" onclick="handleRemoverSugestao(${s.id})" class="text-rose-500 hover:text-rose-700 shrink-0" title="Remover">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        </div>
+    `
+        )
+        .join('');
+    lucide.createIcons();
+}
+
+async function handleSugestaoSubmit(event) {
+    event.preventDefault();
+    if (!sugestaoPacienteSelecionado) return;
+
+    const submitBtn = document.getElementById('sugestao-submit-btn');
+    submitBtn.disabled = true;
+
+    const payload = CadastroApi.buildSugestaoPayload({
+        pacienteId: sugestaoPacienteSelecionado.id,
+        especialidadeId: Number(document.getElementById('sugestao-especialidade').value),
+        quantidade: Number(document.getElementById('sugestao-quantidade').value),
+        periodicidade: document.getElementById('sugestao-periodicidade').value,
+        observacoes: document.getElementById('sugestao-observacoes').value.trim(),
+    });
+
+    try {
+        await CadastroApi.registrarSugestao(payload);
+        showToast('Sugestão salva com sucesso.', 'success');
+        document.getElementById('sugestao-quantidade').value = '1';
+        document.getElementById('sugestao-observacoes').value = '';
+        await renderSugestoesLista();
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao salvar sugestão.', 'error');
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+
+async function handleRemoverSugestao(id) {
+    try {
+        await CadastroApi.removerSugestao(id);
+        showToast('Sugestão removida.', 'success');
+        await renderSugestoesLista();
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao remover sugestão.', 'error');
+    }
+}
+
+async function initCardSugestoesPaciente() {
+    const card = document.getElementById('card-sugestoes-paciente');
+    if (!card) return;
+
+    if (!podeVerSugestoesAtendimento()) {
+        card.classList.add('hidden');
+        return;
+    }
+    card.classList.remove('hidden');
+
+    try {
+        const [pacientes, especialidades] = await Promise.all([PacientesApi.fetchPacientes(), CadastroApi.fetchEspecialidades()]);
+
+        const select = document.getElementById('sugestao-especialidade');
+        select.innerHTML = especialidades.map((e) => `<option value="${e.id}">${escapeHtml(e.nome)}</option>`).join('');
+
+        sugestaoBuscaPacienteAutocomplete = attachAutocomplete(document.getElementById('sugestao-busca-paciente'), {
+            options: pacientes.map((p) => ({ id: p.id, label: p.nome, sublabel: p.planoSaude || '' })),
+            onSelect: (opt) => {
+                sugestaoPacienteSelecionado = opt;
+                document.getElementById('sugestao-paciente-nome').textContent = opt.label;
+                document.getElementById('sugestao-card-conteudo').classList.remove('hidden');
+                renderSugestoesLista();
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao carregar sugestões de atendimento.', 'error');
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     terapeutaAutocomplete = attachAutocomplete(document.getElementById('paciente-terapeuta-responsavel'), { options: [] });
     loadTerapeutasOptions();
     loadEquipesOptions();
+    initCardSugestoesPaciente();
 
     // Permite linkar direto pra uma aba, ex: cadastros.html?tab=recorrencia
     // (usado pelo FAB de ações rápidas do Coordenador em coordenacao.html)

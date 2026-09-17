@@ -79,7 +79,6 @@
                 <div>
                     <label class="form-label">Terapeuta Responsável <span class="text-rose-500">*</span></label>
                     <input type="text" id="paciente-terapeuta-responsavel" required placeholder="Carregando terapeutas..." disabled class="form-input">
-                    <p class="text-[11px] mt-1" style="color:var(--warn)">O vínculo com o terapeuta ainda não é gravado automaticamente pela API — confira depois no Airtable.</p>
                 </div>
 
                 <div>
@@ -94,6 +93,60 @@
                     </button>
                 </div>
             </form>
+
+            <!-- Sugestões de atendimento por paciente — visível só pra
+                 Coordenador/Admin (ver initCardSugestoesPaciente em
+                 js/cadastros.js). Quantidade/especialidade sugerida ou
+                 autorizada por convênio, individual por paciente (não é um
+                 modelo por Plano de Saúde — ver decisão registrada no
+                 esquema do banco). -->
+            <div id="card-sugestoes-paciente" class="hidden mt-6 pt-6 border-t" style="border-color:var(--border)">
+                <h2 class="font-bold text-slate-900 text-base mb-1 flex items-center gap-2">
+                    <i data-lucide="clipboard-list" class="w-5 h-5 text-clinical-600"></i>
+                    Sugestões de Atendimento
+                </h2>
+                <p class="text-xs mb-4" style="color:var(--ink-soft)">Visível só para Coordenação — quantidade/especialidade sugerida ou autorizada, individual por paciente. Fica salva independente de a agenda seguir à risca.</p>
+
+                <div class="mb-4">
+                    <label class="form-label">Buscar paciente</label>
+                    <input type="text" id="sugestao-busca-paciente" placeholder="Digite o nome do paciente..." class="form-input">
+                </div>
+
+                <div id="sugestao-card-conteudo" class="hidden space-y-4 pt-4 border-t" style="border-color:var(--border)">
+                    <p class="text-sm font-semibold" id="sugestao-paciente-nome" style="color:var(--ink)"></p>
+
+                    <div id="sugestao-lista" class="space-y-2"></div>
+                    <p id="sugestao-empty" class="text-xs hidden" style="color:var(--ink-faint)">Nenhuma sugestão cadastrada ainda.</p>
+
+                    <form id="form-sugestao" onsubmit="handleSugestaoSubmit(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end pt-3 border-t" style="border-color:var(--border)">
+                        <div>
+                            <label class="form-label">Especialidade</label>
+                            <select id="sugestao-especialidade" required class="form-input"></select>
+                        </div>
+                        <div>
+                            <label class="form-label">Quantidade</label>
+                            <input type="number" id="sugestao-quantidade" min="1" value="1" required class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">Periodicidade</label>
+                            <select id="sugestao-periodicidade" required class="form-input">
+                                <option value="semanal" selected>Semanal</option>
+                                <option value="mensal">Mensal</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit" id="sugestao-submit-btn" class="btn-primary w-full justify-center">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Adicionar
+                            </button>
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="form-label">Observações (opcional)</label>
+                            <input type="text" id="sugestao-observacoes" placeholder="Ex: não precisa ser no mesmo dia" class="form-input">
+                        </div>
+                    </form>
+                </div>
+            </div>
         </section>
 
         <section id="tab-usuario" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
