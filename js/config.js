@@ -59,6 +59,14 @@ const CONFIG = {
         // gravados em colunas reais — não precisam mais ser concatenados
         // dentro de conteudo (ver ApiService.buildRegisterPayload).
         RELATORIO_REGISTRAR: '/registrar/relatorio',
+        // 2026-09-17: edição de verdade de um relatório já existente (era só
+        // sessionStorage na Coordenação até aqui, nunca persistia — ver
+        // js/coordenacao-api.js).
+        RELATORIO_EDITAR: '/editar/relatorio',
+        // 2026-09-17: resposta do autor original a uma alteração feita por
+        // outra pessoa (ciência do terapeuta) — {id, decisao:
+        // 'concordo'|'nao_concordo'}. Ver js/app.js pro modal obrigatório.
+        RELATORIO_CONFIRMAR_CIENCIA: '/relatorio/ciencia',
         ATENDIMENTO_CRIAR: '/criar/atendimento',
         // 2026-09-17: novo — grava paciente_id/terapeuta_id (por nome,
         // resolvido por subquery) + horario + dias_semana (array) numa

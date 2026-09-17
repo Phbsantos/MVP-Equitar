@@ -1,3 +1,10 @@
+// Coordenador e Admin não têm agenda própria (ver js/role-guard.js) — mandar
+// eles direto pra index.html só geraria um bounce imediato pra coordenacao.html.
+function landingPageFor(perfilRole) {
+    if (perfilRole === 'Coordenador' || perfilRole === 'Admin') return 'coordenacao.html';
+    return 'index.html';
+}
+
 function setLoginError(message) {
     const errorBox = document.getElementById('login-error');
     const errorText = document.getElementById('login-error-text');
@@ -32,7 +39,7 @@ async function handleLoginSubmit(event) {
     try {
         const usuario = await AuthApi.login(email, senha);
         AuthApi.saveSession(usuario);
-        window.location.href = 'index.html';
+        window.location.href = landingPageFor(usuario.perfilRole);
     } catch (error) {
         console.error(error);
         setLoginError(error.message || 'Não foi possível entrar. Tente novamente.');
@@ -45,7 +52,8 @@ window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 
     // Se já tem sessão salva, não precisa logar de novo.
-    if (AuthApi.getSession()) {
-        window.location.href = 'index.html';
+    const session = AuthApi.getSession();
+    if (session) {
+        window.location.href = landingPageFor(session.perfilRole);
     }
 });

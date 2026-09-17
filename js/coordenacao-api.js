@@ -41,7 +41,32 @@ const CoordenacaoApi = {
             atendimentoId: record.atendimento_id || null,
             editadoPor: record.editado_por_nome || '',
             planoSaude: planoMap.get(record.paciente_id) || '',
+            // 2026-09-17: ciência do autor sobre alterações de terceiros —
+            // ver 003_relatorio_ciencia.sql / 05_listar_relatorios.json.
+            // contestadoAtivo: a última resposta do autor foi "não
+            // concordo" e ninguém editou de novo desde então.
+            precisaCiencia: !!record.precisa_ciencia,
+            contestadoAtivo: !!record.contestado_ativo,
         };
+    },
+
+    // Edição de verdade de um relatório já existente — substitui o antigo
+    // rascunho em sessionStorage (nunca persistia, a própria tela avisava
+    // isso). editadoPorNome é sempre quem está logado fazendo a edição.
+    async editarRelatorio({ id, data, conteudo, editadoPorNome }) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.RELATORIO_EDITAR}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, data, conteudo, editado_por_nome: editadoPorNome }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(errorText || `Erro ao salvar edição (${response.status})`);
+        }
+
+        return response.json();
     },
 
     // Transforma um Atendimento cru, mantendo o Status_Presenca original —

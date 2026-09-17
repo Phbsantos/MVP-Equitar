@@ -54,37 +54,6 @@ function toDateInputValue(value) {
 }
 
 // -----------------------------------------------------------------------
-// Edição em sessão — sem backend ainda (a pedido). As alterações de
-// data/conteúdo de um relatório ficam em sessionStorage, então somem ao
-// fechar a aba/navegador, mas sobrevivem a um F5 dentro da mesma sessão.
-// -----------------------------------------------------------------------
-const RELATORIO_EDITS_KEY = 'equitar_coordenacao_relatorio_edits';
-
-function getRelatorioEdits() {
-    try {
-        return JSON.parse(sessionStorage.getItem(RELATORIO_EDITS_KEY)) || {};
-    } catch (e) {
-        return {};
-    }
-}
-
-function saveRelatorioEditToSession(id, { data, conteudo }) {
-    const edits = getRelatorioEdits();
-    edits[id] = { data, conteudo };
-    sessionStorage.setItem(RELATORIO_EDITS_KEY, JSON.stringify(edits));
-}
-
-// Aplica a edição salva por cima do relatório vindo da API, sem mutar o
-// original — assim o filtro/re-render sempre parte do dado "de verdade" +
-// o que foi editado nesta sessão.
-function withSessionEdits(relatorio) {
-    if (!relatorio) return relatorio;
-    const edit = getRelatorioEdits()[relatorio.id];
-    if (!edit) return relatorio;
-    return { ...relatorio, data: edit.data, conteudo: edit.conteudo, editadoNaSessao: true };
-}
-
-// -----------------------------------------------------------------------
 // Estado carregado uma vez — trocar de aba ou filtrar depois é só
 // re-render, sem round-trip novo à API.
 // -----------------------------------------------------------------------
@@ -126,7 +95,7 @@ function switchCoordenacaoTab(tab) {
 // visível no próprio card.
 // -----------------------------------------------------------------------
 function renderAtendimentoCard(atendimento) {
-    const relatorio = atendimento.relatorio ? withSessionEdits(atendimento.relatorio) : null;
+    const relatorio = atendimento.relatorio;
 
     return `
         <div class="card p-5 flex flex-col gap-3">
@@ -151,13 +120,15 @@ function renderAtendimentoCard(atendimento) {
                         ? `
                     <div class="flex items-center justify-between gap-2 mb-1.5">
                         <p class="text-[11px] font-bold uppercase tracking-wider" style="color:var(--ink-faint)">
-                            Evolução${relatorio.editadoNaSessao ? ' · editado nesta sessão' : ''}
+                            Evolução
                         </p>
                         <button onclick="openEditRelatorioModal('${relatorio.id}')" class="btn-icon" style="width:1.75rem;height:1.75rem;" title="Editar relatório">
                             <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                     <p class="text-sm leading-relaxed line-clamp-4" style="color:var(--ink)">${escapeHtml(relatorio.conteudo) || '<span class="italic">Sem conteúdo registrado.</span>'}</p>
+                    ${relatorio.contestadoAtivo ? `<p class="text-[11px] font-semibold mt-1.5" style="color:var(--danger-600, #b91c1c)">O terapeuta não concorda com a última alteração deste relatório.</p>` : ''}
+                    ${relatorio.precisaCiencia ? `<p class="text-[11px] font-semibold mt-1.5" style="color:var(--brand-600)">Aguardando ciência do terapeuta sobre esta alteração.</p>` : ''}
                 `
                         : `<p class="text-xs italic" style="color:var(--ink-faint)">Sem relatório vinculado a este atendimento.</p>`
                 }
@@ -292,8 +263,7 @@ function applyRelatorioFilters(relatorios, filters) {
     });
 }
 
-function renderRelatorioCard(relatorioOriginal) {
-    const relatorio = withSessionEdits(relatorioOriginal);
+function renderRelatorioCard(relatorio) {
     const tipoBadgeClass = relatorio.tipo === 'Evolução' ? 'badge--ok' : 'badge--brand';
     // selectedRelatorioIds guarda ids como string (vêm de onclick="..."),
     // relatorio.id é numérico — precisa normalizar pro mesmo tipo aqui.
@@ -322,7 +292,8 @@ function renderRelatorioCard(relatorioOriginal) {
 
             <p class="text-sm leading-relaxed" style="color:var(--ink)">${escapeHtml(relatorio.conteudo) || '<span class="italic">Sem conteúdo registrado.</span>'}</p>
 
-            ${relatorio.editadoNaSessao ? `<p class="text-[11px] font-semibold" style="color:var(--brand-600)">Editado nesta sessão — ainda não sincronizado com a base.</p>` : ''}
+            ${relatorio.contestadoAtivo ? `<p class="text-[11px] font-semibold" style="color:var(--danger-600, #b91c1c)">O terapeuta não concorda com a última alteração deste relatório.</p>` : ''}
+            ${relatorio.precisaCiencia ? `<p class="text-[11px] font-semibold" style="color:var(--brand-600)">Aguardando ciência do terapeuta sobre esta alteração.</p>` : ''}
         </div>
     `;
 }
@@ -389,7 +360,6 @@ function getSelectedRelatoriosSorted() {
     return [...selectedRelatorioIds]
         .map((id) => findRelatorioById(id))
         .filter(Boolean)
-        .map((r) => withSessionEdits(r))
         .sort((a, b) => new Date(a.data || 0) - new Date(b.data || 0));
 }
 
@@ -571,10 +541,9 @@ function exportComoWord(conteudoHtml, nomeArquivo) {
 // Modal de edição — data e conteúdo, compartilhado pelas duas abas.
 // -----------------------------------------------------------------------
 function openEditRelatorioModal(id) {
-    const relatorioOriginal = findRelatorioById(id);
-    if (!relatorioOriginal) return;
+    const relatorio = findRelatorioById(id);
+    if (!relatorio) return;
 
-    const relatorio = withSessionEdits(relatorioOriginal);
     editingRelatorioId = id;
 
     document.getElementById('modal-editar-paciente').innerText = relatorio.pacienteNome;
@@ -591,19 +560,33 @@ function closeEditRelatorioModal() {
     editingRelatorioId = null;
 }
 
-function handleEditRelatorioSubmit(event) {
+async function handleEditRelatorioSubmit(event) {
     event.preventDefault();
     if (!editingRelatorioId) return;
 
     const data = document.getElementById('modal-editar-data').value;
     const conteudo = document.getElementById('modal-editar-conteudo').value.trim();
+    const session = AuthApi.getSession();
 
-    saveRelatorioEditToSession(editingRelatorioId, { data, conteudo });
+    try {
+        await CoordenacaoApi.editarRelatorio({
+            id: editingRelatorioId,
+            data,
+            conteudo,
+            editadoPorNome: (session && session.nome) || '',
+        });
 
-    closeEditRelatorioModal();
-    renderAtendimentosTab();
-    renderRelatoriosTab();
-    showToast('Alterações salvas nesta sessão. Ainda não foram enviadas para a base.', 'success');
+        closeEditRelatorioModal();
+        // Recarrega tudo em vez de só atualizar localmente -- o autor
+        // original precisa ver essa alteração e dar ciência (ver
+        // js/app.js), então o dado tem que vir de volta de verdade do
+        // servidor, não de um patch otimista no cliente.
+        await loadCoordenacaoDados();
+        showToast('Relatório atualizado com sucesso.', 'success');
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao salvar a edição. Tente novamente.', 'error');
+    }
 }
 
 // -----------------------------------------------------------------------

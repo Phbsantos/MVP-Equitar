@@ -1,0 +1,93 @@
+{
+  "id": "eqtr22ConfirmarCienciaRelatorio",
+  "name": "Equitar - POST /relatorio/ciencia",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0022-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "relatorio/ciencia",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_ciencia",
+      "name": "Registrar Ciencia",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Resposta do autor original a uma alteração feita por outra pessoa no\n-- relatório dele (ver 21_editar_relatorio.json). \"concordo\" grava\n-- ciente_em; \"nao_concordo\" grava contestado_em -- nenhum dos dois é um\n-- fluxo de aprovação/rejeição de verdade, só marcam que ele viu e\n-- respondeu (se discordar, o combinado é falar direto com quem editou,\n-- fora do sistema -- ver js/app.js). Uma edição nova depois disso deixa\n-- updated_at mais recente que os dois, voltando a ficar pendente\n-- sozinho, sem precisar zerar nada aqui.\n-- CTE + SELECT final garante sempre 1 linha de volta (mesmo se o id não\n-- existir), pra responder 404 limpo em vez de deixar o fluxo morrer com\n-- 0 itens.\nWITH upd AS (\n  UPDATE relatorios SET\n    ciente_em = CASE WHEN $2 = 'concordo' THEN now() ELSE ciente_em END,\n    contestado_em = CASE WHEN $2 = 'nao_concordo' THEN now() ELSE contestado_em END\n  WHERE id = $1::int\n  RETURNING id, ciente_em, contestado_em\n)\nSELECT\n  (SELECT id FROM upd) IS NOT NULL AS encontrado,\n  (SELECT id FROM upd) AS id,\n  (SELECT ciente_em FROM upd) AS ciente_em,\n  (SELECT contestado_em FROM upd) AS contestado_em",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.id, $json.body.decisao ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "if_encontrado",
+      "name": "Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [520, 300],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.encontrado }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 }
+        }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Resposta registrada.\", relatorio: { id: $json.id, cienteEm: $json.ciente_em, contestadoEm: $json.contestado_em } } }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond_nao_encontrado",
+      "name": "Responder Nao Encontrado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 420],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: false, mensagem: \"Relatório não encontrado.\" } }}",
+        "options": { "responseCode": 404 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Registrar Ciencia", "type": "main", "index": 0 }]] },
+    "Registrar Ciencia": { "main": [[{ "node": "Encontrado?", "type": "main", "index": 0 }]] },
+    "Encontrado?": {
+      "main": [
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }],
+        [{ "node": "Responder Nao Encontrado", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

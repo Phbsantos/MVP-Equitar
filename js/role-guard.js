@@ -1,9 +1,10 @@
 // Controla o acesso às telas de acordo com o Perfil_Role do usuário logado.
 // Inclua este script logo após auth-guard.js, em todas as telas exceto login.html.
 //
-// Por enquanto só restringimos Terapeuta e Supervisor. Qualquer outro perfil
-// (Coordenador, Admin, ou em branco) continua com acesso livre a todas as
-// telas — as regras dele ainda não foram definidas.
+// Coordenador e Admin não têm agenda própria de atendimentos — "Minha
+// Agenda" (index.html) é a tela de trabalho do Terapeuta/Supervisor. Por
+// isso os dois perfis administrativos ficam de fora dela e caem direto em
+// Coordenação (primeiro item da lista) após o login.
 (function () {
     const session = window.currentSession || AuthApi.getSession();
     if (!session) return; // auth-guard.js já cuida do redirect sem sessão
@@ -11,6 +12,8 @@
     const ROLE_PAGES = {
         Terapeuta: ['index.html'],
         Supervisor: ['index.html', 'supervisor.html'],
+        Coordenador: ['coordenacao.html', 'cadastros.html', 'relatorios.html', 'supervisor.html'],
+        Admin: ['coordenacao.html', 'cadastros.html', 'relatorios.html', 'supervisor.html'],
     };
 
     const allowed = ROLE_PAGES[session.perfilRole];

@@ -35,10 +35,6 @@ async function loadSchedule(date = getSelectedDate(), options = {}) {
     try {
         patients = await ApiService.fetchAtendimentosDia(date);
 
-        patients.forEach((patient) => {
-            patient.history = ApiService.buildPatientHistory(patients, patient.patientKey);
-        });
-
         if (patientSearchAutocomplete) {
             patientSearchAutocomplete.setOptions(
                 patients.map((p) => ({ id: p.id, label: p.name, sublabel: p.time }))
@@ -407,15 +403,12 @@ async function saveAttendance() {
         patient.nextSteps = nextSteps;
         patient.apiStatus = ApiService.mapInternalStatusToApi(selectedStatus);
 
-        patients.forEach((p) => {
-            p.history = ApiService.buildPatientHistory(patients, p.patientKey);
-        });
-
         renderPatientList(document.getElementById('patient-search').value);
         updateDashboardStats();
         selectPatient(selectedPatientId);
 
         showToast(`Atendimento de ${patient.name} gravado com sucesso!`, 'success');
+        checkAtendimentosPendentesAnteriores();
 
         const nextPending = patients.find((p) => p.status === 'pending');
         if (nextPending) {
@@ -463,55 +456,290 @@ function filterPatients(filter) {
     renderPatientList(document.getElementById('patient-search').value);
 }
 
-function openHistoryModal() {
+const TIMELINE_STATUS_META = {
+    realizado: { badge: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-500', label: 'Realizado' },
+    falta: { badge: 'bg-rose-100 text-rose-800', dot: 'bg-rose-500', label: 'Falta sem Aviso' },
+    desmarcado: { badge: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', label: 'Desmarcado com Aviso' },
+    cancelado: { badge: 'bg-slate-300 text-slate-800', dot: 'bg-slate-400', label: 'Cancelado' },
+};
+
+// Linha do tempo do dia: busca no servidor por paciente_id + a data que está
+// selecionada na agenda (não necessariamente "hoje" no relógio — o terapeuta
+// pode estar revisando outro dia), cruzando qualquer terapeuta/especialidade
+// que tenha atendido esse paciente nessa data. Ver
+// ApiService.fetchTimelineAtendimentosPaciente pro porquê de não filtrar por
+// terapeuta_id.
+async function openHistoryModal() {
     if (!selectedPatientId) return;
     const patient = patients.find((p) => p.id === selectedPatientId);
     if (!patient) return;
 
     document.getElementById('modal-patient-info').innerText = `${patient.name} • ATD-${patient.atendimentoNum || String(patient.id).padStart(4, '0')}`;
     const container = document.getElementById('modal-history-content');
-    container.innerHTML = '';
+    container.innerHTML = '<div class="text-center p-8 text-slate-400 text-xs">Carregando linha do tempo...</div>';
+    document.getElementById('history-modal').classList.remove('hidden');
 
-    const history = patient.history || [];
-
-    if (history.length === 0) {
+    let timeline = [];
+    try {
+        timeline = await ApiService.fetchTimelineAtendimentosPaciente(patient.pacienteId, getSelectedDate());
+    } catch (error) {
+        console.error(error);
         container.innerHTML = `
-            <div class="text-center p-8 text-slate-400 text-xs">
-                Nenhum registro anterior encontrado para este paciente.
+            <div class="text-center p-8 text-rose-500 text-xs">
+                Não foi possível carregar a linha do tempo de hoje. Tente novamente.
             </div>
         `;
-    } else {
-        history.forEach((item) => {
-            const card = document.createElement('div');
-            card.className = 'border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-2';
-
-            let badgeColor = 'bg-emerald-100 text-emerald-800';
-            if (item.status === 'falta') badgeColor = 'bg-rose-100 text-rose-800';
-            if (item.status === 'desmarcado') badgeColor = 'bg-amber-100 text-amber-800';
-            if (item.status === 'cancelado') badgeColor = 'bg-slate-200 text-slate-800';
-
-            card.innerHTML = `
-                <div class="flex items-center justify-between text-xs">
-                    <span class="font-bold text-slate-700 flex items-center gap-1.5">
-                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-400"></i>
-                        ${item.date}
-                    </span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${badgeColor}">
-                        ${item.status}
-                    </span>
-                </div>
-                <p class="text-xs text-slate-600 leading-relaxed font-sans">${item.text || 'Sem detalhes registrados.'}</p>
-            `;
-            container.appendChild(card);
-        });
+        return;
     }
 
+    renderTimeline(container, timeline);
     lucide.createIcons();
-    document.getElementById('history-modal').classList.remove('hidden');
+}
+
+function renderTimeline(container, timeline) {
+    container.innerHTML = '';
+
+    if (timeline.length === 0) {
+        container.innerHTML = `
+            <div class="text-center p-8 text-slate-400 text-xs">
+                Nenhum atendimento registrado para este paciente nesta data.
+            </div>
+        `;
+        return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'relative pl-7';
+
+    const line = document.createElement('div');
+    line.className = 'absolute left-[9px] top-2 bottom-2 w-px bg-slate-200';
+    list.appendChild(line);
+
+    timeline.forEach((item, index) => {
+        const meta = TIMELINE_STATUS_META[item.status] || TIMELINE_STATUS_META.realizado;
+        const isRealizado = item.status === 'realizado';
+        const detailId = `timeline-detail-${item.id}`;
+
+        const entry = document.createElement('div');
+        entry.className = `relative ${index < timeline.length - 1 ? 'mb-4' : ''}`;
+
+        const detailText = isRealizado
+            ? item.notes || 'Sem relato registrado.'
+            : `Justificativa: ${item.justification || 'não informada'}`;
+
+        const extraDetails = isRealizado
+            ? `
+                ${item.engagement ? `<p class="mt-2 text-[11px] text-slate-400">Engajamento: ${ApiService.engagementLabels[item.engagement] || item.engagement}</p>` : ''}
+                ${item.nextSteps ? `<p class="mt-1 text-[11px] text-slate-400">Próximos passos: ${item.nextSteps}</p>` : ''}
+            `
+            : '';
+
+        entry.innerHTML = `
+            <span class="absolute -left-7 top-1.5 w-3 h-3 rounded-full ring-4 ring-white ${meta.dot}"></span>
+            <button type="button" onclick="toggleTimelineDetail('${detailId}', this)" class="w-full text-left border border-slate-200 rounded-xl p-3 bg-slate-50/50 hover:bg-slate-100/70 transition">
+                <div class="flex items-center justify-between gap-2 text-xs">
+                    <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                        <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
+                        ${item.time}
+                    </span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${meta.badge}">${meta.label}</span>
+                </div>
+                <div class="mt-1.5 flex items-center justify-between gap-2">
+                    <p class="text-xs text-slate-600">
+                        <span class="font-semibold">${item.tipoAtendimento || 'Atendimento'}</span>
+                        · ${item.therapistName || 'Terapeuta não informado'}
+                    </p>
+                    <i data-lucide="chevron-down" class="chevron w-4 h-4 text-slate-400 transition-transform shrink-0"></i>
+                </div>
+            </button>
+            <div id="${detailId}" class="hidden mt-2 ml-1 p-3 rounded-lg bg-white border border-slate-100 text-xs text-slate-600 leading-relaxed">
+                ${detailText}
+                ${extraDetails}
+            </div>
+        `;
+
+        list.appendChild(entry);
+    });
+
+    container.appendChild(list);
+}
+
+function toggleTimelineDetail(detailId, buttonEl) {
+    const detail = document.getElementById(detailId);
+    if (!detail) return;
+    detail.classList.toggle('hidden');
+    const chevron = buttonEl.querySelector('.chevron');
+    if (chevron) chevron.classList.toggle('rotate-180');
 }
 
 function closeHistoryModal() {
     document.getElementById('history-modal').classList.add('hidden');
+}
+
+let pendentesAnterioresCache = [];
+
+// Verifica atendimentos que ficaram "Agendado" em dias ANTERIORES a hoje —
+// nunca foram fechados. Roda ao carregar a página e de novo depois de cada
+// atendimento salvo, pra o aviso sumir/atualizar sozinho.
+async function checkAtendimentosPendentesAnteriores() {
+    const session = AuthApi.getSession();
+    if (!session) return;
+
+    try {
+        pendentesAnterioresCache = await ApiService.fetchAtendimentosPendentesAnteriores(session.id);
+    } catch (error) {
+        console.error(error);
+        return; // é só um aviso -- falhar aqui não deve travar a agenda
+    }
+
+    const banner = document.getElementById('pendentes-anteriores-banner');
+    const texto = document.getElementById('pendentes-anteriores-texto');
+    if (!banner || !texto) return;
+
+    if (pendentesAnterioresCache.length === 0) {
+        banner.classList.add('hidden');
+        return;
+    }
+
+    const plural = pendentesAnterioresCache.length > 1;
+    texto.innerText = `Você tem ${pendentesAnterioresCache.length} atendimento${plural ? 's' : ''} pendente${plural ? 's' : ''} de dias anteriores, ainda como "Agendado".`;
+    banner.classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function openPendentesAnterioresModal() {
+    const container = document.getElementById('pendentes-modal-content');
+    if (!container) return;
+
+    renderPendentesAnterioresLista(container, pendentesAnterioresCache);
+    lucide.createIcons();
+    document.getElementById('pendentes-modal').classList.remove('hidden');
+}
+
+function closePendentesAnterioresModal() {
+    document.getElementById('pendentes-modal').classList.add('hidden');
+}
+
+function renderPendentesAnterioresLista(container, lista) {
+    container.innerHTML = '';
+
+    if (lista.length === 0) {
+        container.innerHTML = `
+            <div class="text-center p-8 text-slate-400 text-xs">
+                Nenhum atendimento pendente de dias anteriores.
+            </div>
+        `;
+        return;
+    }
+
+    lista.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-3 border border-slate-200 rounded-xl p-3 bg-slate-50/50';
+        row.innerHTML = `
+            <div class="min-w-0">
+                <p class="text-sm font-bold text-slate-800 truncate">${item.name}</p>
+                <p class="text-xs text-slate-500">
+                    ${ApiService.formatDate(item.dataHora)} às ${item.time} · ${item.tipoAtendimento || 'Atendimento'}
+                </p>
+            </div>
+            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 text-xs font-semibold hover:bg-amber-50 transition shrink-0">
+                Finalizar
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+        `;
+        row.querySelector('button').addEventListener('click', () => finalizarPendenteAnterior(item));
+        container.appendChild(row);
+    });
+}
+
+// Em vez de fechar o atendimento direto de dentro do modal (duplicaria toda
+// a validação que já existe em saveAttendance), leva o terapeuta pro dia
+// certo na agenda com o paciente já selecionado — um clique a mais, zero
+// regra de negócio reimplementada.
+async function finalizarPendenteAnterior(item) {
+    closePendentesAnterioresModal();
+
+    const dataAtendimento = (item.dataHora || '').slice(0, 10);
+    document.getElementById('selected-date').value = dataAtendimento;
+    selectedPatientId = null;
+
+    await loadSchedule(dataAtendimento);
+    selectPatient(item.id);
+
+    showToast(`Abrindo o atendimento de ${item.name} em ${ApiService.formatDate(item.dataHora)} pra você finalizar.`, 'info');
+}
+
+let relatoriosPendentesCienciaCache = [];
+let relatorioCienciaIndiceAtual = 0;
+
+// Relatórios de Evolução que este terapeuta escreveu e que foram alterados
+// por outra pessoa (normalmente Coordenação) sem ele ainda ter respondido.
+// Modal obrigatório (sem botão de fechar) -- ele precisa dar ciência antes
+// de seguir. Discordar não abre um fluxo de contestação dentro do app: só
+// registra a resposta "não concordo" e orienta a falar direto com quem
+// editou (ver ApiService.confirmarCienciaRelatorio).
+async function checkRelatoriosPendentesCiencia() {
+    const session = AuthApi.getSession();
+    if (!session) return;
+
+    try {
+        relatoriosPendentesCienciaCache = await ApiService.fetchRelatoriosPendentesCiencia(session.id);
+    } catch (error) {
+        console.error(error);
+        return;
+    }
+
+    relatorioCienciaIndiceAtual = 0;
+    if (relatoriosPendentesCienciaCache.length > 0) {
+        renderRelatorioCienciaModal();
+    }
+}
+
+function renderRelatorioCienciaModal() {
+    const item = relatoriosPendentesCienciaCache[relatorioCienciaIndiceAtual];
+    const modal = document.getElementById('relatorio-ciencia-modal');
+    if (!modal) return;
+
+    if (!item) {
+        modal.classList.add('hidden');
+        return;
+    }
+
+    document.getElementById('ciencia-contador').innerText =
+        relatoriosPendentesCienciaCache.length > 1
+            ? `${relatorioCienciaIndiceAtual + 1} de ${relatoriosPendentesCienciaCache.length}`
+            : '';
+    document.getElementById('ciencia-paciente').innerText = item.pacienteNome;
+    document.getElementById('ciencia-data').innerText = ApiService.formatDate(item.data);
+    document.getElementById('ciencia-editor').innerText =
+        item.editadoPorNome + (item.editadoPorEmail ? ` (${item.editadoPorEmail})` : '');
+    document.getElementById('ciencia-conteudo').innerText = item.conteudo || 'Sem conteúdo registrado.';
+
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+}
+
+async function responderCienciaRelatorio(decisao) {
+    const item = relatoriosPendentesCienciaCache[relatorioCienciaIndiceAtual];
+    if (!item) return;
+
+    try {
+        await ApiService.confirmarCienciaRelatorio(item.id, decisao);
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao registrar sua resposta. Tente novamente.', 'error');
+        return;
+    }
+
+    showToast(
+        decisao === 'nao_concordo'
+            ? `Registrado. Entre em contato com ${item.editadoPorNome} pra alinhar essa alteração.`
+            : 'Ciência registrada.',
+        decisao === 'nao_concordo' ? 'info' : 'success'
+    );
+
+    relatorioCienciaIndiceAtual += 1;
+    renderRelatorioCienciaModal();
 }
 
 function showToast(message, type = 'info') {
@@ -575,4 +803,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     loadSchedule();
+    checkAtendimentosPendentesAnteriores();
+    checkRelatoriosPendentesCiencia();
 });

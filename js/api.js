@@ -60,13 +60,14 @@ const ApiService = {
     transformAtendimento(record) {
         return {
             id: record.id,
-            patientKey: (record.paciente_nome || '').toLowerCase().trim(),
+            pacienteId: record.paciente_id,
             name: record.paciente_nome || `Paciente #${record.paciente_id}`,
             therapistName: record.terapeuta_nome || '',
             therapistId: record.terapeuta_id,
             age: '',
             time: this.formatTime(record.data_hora),
             specialty: record.especialidade || 'Terapia Ocupacional',
+            tipoAtendimento: record.tipo_atendimento || '',
             status: this.mapApiStatusToInternal(record.status_presenca),
             notes: record.evolucao_prontuario || '',
             justification: record.justificativa_falta || '',
@@ -77,18 +78,120 @@ const ApiService = {
         };
     },
 
-    buildPatientHistory(patients, patientKey) {
-        return patients
-            .filter((p) => p.patientKey === patientKey && p.status !== 'pending')
-            .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora))
-            .map((p) => ({
-                date: this.formatDate(p.dataHora),
-                status: p.status,
-                text:
-                    p.status === 'realizado'
-                        ? p.notes
-                        : `[${p.status.toUpperCase()}] Justificativa: ${p.justification}`,
-            }));
+    // Linha do tempo do dia (cartão de atendimento, index.html): busca direto
+    // no servidor por paciente_id + data, SEM filtrar por terapeuta_id de
+    // propósito — a clínica é multidisciplinar, então o terapeuta que abre o
+    // cartão precisa ver o que já aconteceu com o paciente hoje em qualquer
+    // especialidade/profissional, não só nos atendimentos que ele mesmo deu.
+    // Só entram status que já ocorreram (Realizado/Falta/Desmarcado/
+    // Cancelado) — "pending" (Agendado) ainda não tem nada pra mostrar.
+    async fetchTimelineAtendimentosPaciente(pacienteId, data) {
+        if (!pacienteId || !data) return [];
+
+        const params = new URLSearchParams({ paciente_id: pacienteId, data });
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}?${params.toString()}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar a linha do tempo (${response.status})`);
+        }
+
+        const payload = await response.json();
+        const records = Array.isArray(payload) ? payload : [];
+
+        return records
+            .map((record) => this.transformAtendimento(record))
+            .filter((item) => item.status !== 'pending')
+            .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+    },
+
+    // Atendimentos que ficaram "Agendado" em dias ANTERIORES a hoje — nunca
+    // foram fechados (terapeuta esqueceu, ou o dia acabou sem sobrar tempo).
+    // Diferente do filtro "Pendentes" da lista da agenda (que é só o que
+    // ainda falta fechar NO DIA selecionado): aqui é sempre relativo à data
+    // real de hoje, independente de qual dia está aberto na tela. Usa os
+    // filtros de servidor que /listar/atendimentos já tinha (data_fim +
+    // status_presenca) — não precisa trazer tudo e filtrar no cliente.
+    async fetchAtendimentosPendentesAnteriores(terapeutaId) {
+        if (!terapeutaId) return [];
+
+        const hojeStr = new Date().toISOString().split('T')[0];
+        const ontemMs = new Date(`${hojeStr}T00:00:00Z`).getTime() - 24 * 60 * 60 * 1000;
+        const dataFim = new Date(ontemMs).toISOString().split('T')[0];
+
+        const params = new URLSearchParams({
+            terapeuta_id: terapeutaId,
+            data_fim: dataFim,
+            status_presenca: 'Agendado',
+        });
+
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}?${params.toString()}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Erro ao verificar atendimentos pendentes (${response.status})`);
+        }
+
+        const payload = await response.json();
+        const records = Array.isArray(payload) ? payload : [];
+
+        return records
+            .map((record) => this.transformAtendimento(record))
+            .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+    },
+
+    // Relatórios de Evolução que este terapeuta escreveu (autor_id) e que
+    // foram alterados por outra pessoa (normalmente Coordenação) sem ele
+    // ainda ter respondido — ver "precisa_ciencia" calculado no servidor em
+    // /listar/relatorios (003_relatorio_ciencia.sql). Não filtra por tipo
+    // aqui porque precisa_ciencia já só fica true pra Evolução.
+    async fetchRelatoriosPendentesCiencia(autorId) {
+        if (!autorId) return [];
+
+        const params = new URLSearchParams({ autor_id: autorId });
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_RELATORIOS}?${params.toString()}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Erro ao verificar alterações em relatórios (${response.status})`);
+        }
+
+        const payload = await response.json();
+        const records = Array.isArray(payload) ? payload : [];
+
+        return records
+            .filter((record) => record.precisa_ciencia)
+            .map((record) => ({
+                id: record.id,
+                pacienteNome: record.paciente_nome || 'Paciente não informado',
+                data: record.data,
+                conteudo: record.conteudo || '',
+                editadoPorNome: record.editado_por_nome || 'não identificado',
+                editadoPorEmail: record.editado_por_email || '',
+                atualizadoEm: record.updated_at,
+            }))
+            .sort((a, b) => new Date(a.atualizadoEm) - new Date(b.atualizadoEm));
+    },
+
+    // "concordo" ou "nao_concordo" — nenhum dos dois muda o conteúdo do
+    // relatório, só registram que o autor original viu a alteração e
+    // respondeu. Discordância não vira um fluxo de aprovação dentro do
+    // app: se ele não concordar, o combinado é falar direto com quem
+    // editou (ver o modal obrigatório em index.html).
+    async confirmarCienciaRelatorio(id, decisao) {
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.RELATORIO_CONFIRMAR_CIENCIA}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, decisao }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(errorText || `Erro ao registrar resposta (${response.status})`);
+        }
+
+        return response.json();
     },
 
     // 2026-09-08: /listar/atendimentos agora aceita filtro de verdade no
