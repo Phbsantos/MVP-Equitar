@@ -94,12 +94,17 @@ let allRelatorios = [];
 let selectedRelatorioIds = new Set();
 let editingRelatorioId = null;
 
+// Comparação por String() dos dois lados (corrigido 2026-09-17): o id
+// chega aqui como string sempre que vem de um onclick="...('${x.id}')" no
+// HTML, mas os relatórios em si têm id numérico (Postgres) desde a
+// migração — "6" === 6 é sempre false, então a seleção pra exportar e o
+// botão de editar relatório silenciosamente não faziam nada.
 function findRelatorioById(id) {
-    const direto = allRelatorios.find((r) => r.id === id);
+    const direto = allRelatorios.find((r) => String(r.id) === String(id));
     if (direto) return direto;
 
     for (const atendimento of allAtendimentos) {
-        if (atendimento.relatorio && atendimento.relatorio.id === id) return atendimento.relatorio;
+        if (atendimento.relatorio && String(atendimento.relatorio.id) === String(id)) return atendimento.relatorio;
     }
     return null;
 }
@@ -290,7 +295,9 @@ function applyRelatorioFilters(relatorios, filters) {
 function renderRelatorioCard(relatorioOriginal) {
     const relatorio = withSessionEdits(relatorioOriginal);
     const tipoBadgeClass = relatorio.tipo === 'Evolução' ? 'badge--ok' : 'badge--brand';
-    const selecionado = selectedRelatorioIds.has(relatorio.id);
+    // selectedRelatorioIds guarda ids como string (vêm de onclick="..."),
+    // relatorio.id é numérico — precisa normalizar pro mesmo tipo aqui.
+    const selecionado = selectedRelatorioIds.has(String(relatorio.id));
 
     return `
         <div class="card p-5 flex flex-col gap-3" style="${selecionado ? 'outline:2px solid var(--brand-500, #2f8f5b); outline-offset:-2px;' : ''}">

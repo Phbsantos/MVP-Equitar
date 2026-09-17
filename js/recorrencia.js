@@ -125,7 +125,19 @@ function renderRecorrenciaGrid() {
     const filtroTerapeuta = filtroSelect.value;
     const ativas = recorrencias.filter((r) => r.status === 'Ativa' && (!filtroTerapeuta || r.terapeutaNome === filtroTerapeuta));
 
-    const totalHoras = RECORRENCIA_GRADE_HORA_FIM - RECORRENCIA_GRADE_HORA_INICIO;
+    // Faixa de horário dinâmica (corrigido 2026-09-17): antes era fixa em
+    // RECORRENCIA_GRADE_HORA_INICIO..FIM, e qualquer recorrência com
+    // horário fora dessa janela (ex: cadastrada por engano fora do
+    // expediente) simplesmente não aparecia em lugar nenhum, sem aviso —
+    // "a recorrência nova não aparece na grade". Agora a janela sempre se
+    // expande pra cobrir toda recorrência ativa, além do padrão comercial.
+    const horasExistentes = ativas
+        .map((r) => parseInt((r.horario || '').split(':')[0], 10))
+        .filter((h) => !Number.isNaN(h));
+    const horaInicio = Math.min(RECORRENCIA_GRADE_HORA_INICIO, ...horasExistentes);
+    const horaFim = Math.max(RECORRENCIA_GRADE_HORA_FIM, ...horasExistentes.map((h) => h + 1));
+
+    const totalHoras = horaFim - horaInicio;
     let html = `<div class="recorrencia-grade" style="grid-template-rows: 2.25rem repeat(${totalHoras}, 3rem);">`;
 
     // Cabeçalho
@@ -135,8 +147,8 @@ function renderRecorrenciaGrid() {
     });
 
     // Linhas de horário + células clicáveis
-    for (let h = RECORRENCIA_GRADE_HORA_INICIO; h < RECORRENCIA_GRADE_HORA_FIM; h++) {
-        const linha = h - RECORRENCIA_GRADE_HORA_INICIO + 2;
+    for (let h = horaInicio; h < horaFim; h++) {
+        const linha = h - horaInicio + 2;
         const horaLabel = `${String(h).padStart(2, '0')}:00`;
         html += `<div class="recorrencia-grade-cell recorrencia-grade-hora" style="grid-row:${linha}; grid-column:1;">${horaLabel}</div>`;
 
@@ -154,8 +166,7 @@ function renderRecorrenciaGrid() {
     ativas.forEach((r) => {
         const cor = filtroTerapeuta ? 'var(--brand-600)' : corParaTerapeuta(r.terapeutaNome);
         const [h] = r.horario.split(':').map(Number);
-        if (h < RECORRENCIA_GRADE_HORA_INICIO || h >= RECORRENCIA_GRADE_HORA_FIM) return;
-        const linha = h - RECORRENCIA_GRADE_HORA_INICIO + 2;
+        const linha = h - horaInicio + 2;
         const duracao = r.duracaoMinutos || RECORRENCIA_DURACAO_PADRAO_MINUTOS;
         const alturaRem = (duracao / 60) * ALTURA_HORA_REM;
         const horarioFim = addMinutosHorario(r.horario, duracao);
