@@ -1,29 +1,18 @@
 const PacientesApi = {
-    firstOrValue(value) {
-        if (Array.isArray(value)) return value[0] || '';
-        return value || '';
-    },
-
-    normalizeRecordsResponse(data) {
-        if (data == null) return [];
-        if (Array.isArray(data)) return data.filter((item) => item && (item.fields || item.id));
-        if (Array.isArray(data.records)) return data.records.filter((item) => item && (item.fields || item.id));
-        if (data.fields || data.id) return [data];
-        return [];
-    },
-
+    // 2026-09-08: /listar/pacientes (backend novo, n8n local + Postgres)
+    // devolve um array de objetos já achatados — nada de "fields", nada
+    // de lookup Airtable pra resolver terapeuta_responsavel_nome/plano_nome,
+    // o workflow já faz o JOIN e devolve pronto.
     transformPaciente(record) {
-        const fields = record.fields || {};
         return {
             id: record.id,
-            nome: fields.Nome_Completo || '',
-            dataNascimento: fields.Data_Nascimento || '',
-            responsavelNome: fields.Responsavel_Nome || '',
-            telefoneWhatsapp: fields.Telefone_WhatsApp ? String(fields.Telefone_WhatsApp) : '',
-            planoSaude: fields.Plano_Saude || '',
-            // Lookup gerado pelo Airtable a partir do link Terapeuta_Responsavel.
-            terapeutaResponsavelNome: this.firstOrValue(fields['Nome (from Terapeuta_Responsavel)']) || '',
-            status: fields.Status || '',
+            nome: record.nome_completo || '',
+            dataNascimento: record.data_nascimento || '',
+            responsavelNome: record.responsavel_nome || '',
+            telefoneWhatsapp: record.telefone_whatsapp || '',
+            planoSaude: record.plano_nome || '',
+            terapeutaResponsavelNome: record.terapeuta_responsavel_nome || '',
+            status: record.status || '',
         };
     },
 
@@ -36,7 +25,9 @@ const PacientesApi = {
         }
 
         const data = await response.json();
-        return this.normalizeRecordsResponse(data)
+        const records = Array.isArray(data) ? data : [];
+
+        return records
             .map((record) => this.transformPaciente(record))
             .filter((p) => p.nome)
             .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));

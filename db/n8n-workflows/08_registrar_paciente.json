@@ -1,0 +1,55 @@
+{
+  "id": "eqtr08RegistrarPaciente",
+  "name": "Equitar - POST /registrar/paciente",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0008-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "registrar/paciente",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_registrar",
+      "name": "Registrar Paciente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Corrige o bug antigo do Airtable: terapeuta_responsavel_nome era\n-- aceito no payload mas o link Terapeuta_Responsavel do paciente criado\n-- ficava vazio (nunca resolvido). Aqui é resolvido por subquery de\n-- verdade -- sem paciente que bate, fica NULL (não trava o cadastro,\n-- igual antes, só que agora resolve quando bate).\nINSERT INTO pacientes (nome_completo, data_nascimento, responsavel_nome, telefone_whatsapp, terapeuta_responsavel_id, plano_id, status)\nVALUES (\n  $1, $2::date, $3, $4,\n  (SELECT id FROM usuarios WHERE nome = $5),\n  (SELECT id FROM planos WHERE nome = $6),\n  COALESCE($7::paciente_status, 'Em Acompanhamento')\n)\nRETURNING id, nome_completo, status::text AS status",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.nome_completo, $json.body.data_nascimento, $json.body.responsavel_nome, $json.body.telefone_whatsapp, $json.body.terapeuta_responsavel_nome || null, $json.body.plano_saude || null, $json.body.status || null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Paciente registrado com sucesso.\", paciente: { id: $json.id, nomeCompleto: $json.nome_completo, status: $json.status } } }}",
+        "options": { "responseCode": 201 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Registrar Paciente", "type": "main", "index": 0 }]] },
+    "Registrar Paciente": { "main": [[{ "node": "Responder Sucesso", "type": "main", "index": 0 }]] }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "nome": "Marina Souza Teste",
+  "email": "marina.teste@equitar.com.br",
+  "senha": "senha123",
+  "perfil_role": "Terapeuta",
+  "especialidade": "Psicologia",
+  "numero_conselho": "CRP 00/00000",
+  "equipe_nome": "Equipe Tarde",
+  "status": "Ativo"
+}

@@ -2,21 +2,13 @@ const CoordenacaoApi = {
     // --- Atendimentos realizados + Relatórios, com Plano_Saude cruzado ---
     // Plano_Saude vive em Pacientes, não em Atendimentos nem Relatorios —
     // por isso todo fetch abaixo também busca /listar/pacientes pra montar
-    // o cruzamento por nome. Ver decisão registrada no esquema da base
-    // ("Base Equitar"): o plano fica no paciente, não no atendimento.
-
-    firstOrValue(value) {
-        if (Array.isArray(value)) return value[0] || '';
-        return value || '';
-    },
-
-    normalizeRecordsResponse(data) {
-        if (data == null) return [];
-        if (Array.isArray(data)) return data.filter((item) => item && (item.fields || item.id));
-        if (Array.isArray(data.records)) return data.records.filter((item) => item && (item.fields || item.id));
-        if (data.fields || data.id) return [data];
-        return [];
-    },
+    // o cruzamento. Ver decisão registrada no esquema da base ("Base
+    // Equitar"): o plano fica no paciente, não no atendimento.
+    //
+    // 2026-09-08: backend novo — o cruzamento agora é por paciente_id
+    // (inteiro real, vindo de FK) em vez de por nome normalizado em
+    // minúsculas. Mais exato (dois pacientes não podem colidir por nome
+    // parecido) e mais simples (sem lookup Airtable pra desembrulhar).
 
     async fetchListar(endpointKey) {
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS[endpointKey]}`;
@@ -26,33 +18,29 @@ const CoordenacaoApi = {
             throw new Error(`Erro ao carregar dados (${response.status})`);
         }
 
-        return this.normalizeRecordsResponse(await response.json());
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
     },
 
     buildPlanoMap(pacienteRecords) {
         const map = new Map();
         pacienteRecords.forEach((record) => {
-            const fields = record.fields || record;
-            const nome = fields.Nome_Completo;
-            if (nome) map.set(nome.trim().toLowerCase(), fields.Plano_Saude || '');
+            if (record.id != null) map.set(record.id, record.plano_nome || '');
         });
         return map;
     },
 
     transformRelatorio(record, planoMap) {
-        const fields = record.fields || record;
-        const pacienteNome = this.firstOrValue(fields['Nome_Completo (from Paciente)']) || 'Paciente não informado';
-
         return {
             id: record.id,
-            tipo: fields.Tipo || 'Evolução',
-            pacienteNome,
-            autorNome: this.firstOrValue(fields['Nome (from Autor)']) || 'Autor não informado',
-            data: fields.Data || '',
-            conteudo: fields.Conteudo || '',
-            atendimentoId: this.firstOrValue(fields.Atendimento) || null,
-            editadoPor: fields.Editado_Por || '',
-            planoSaude: planoMap.get(pacienteNome.trim().toLowerCase()) || '',
+            tipo: record.tipo || 'Evolução',
+            pacienteNome: record.paciente_nome || 'Paciente não informado',
+            autorNome: record.autor_nome || 'Autor não informado',
+            data: record.data || '',
+            conteudo: record.conteudo || '',
+            atendimentoId: record.atendimento_id || null,
+            editadoPor: record.editado_por_nome || '',
+            planoSaude: planoMap.get(record.paciente_id) || '',
         };
     },
 
@@ -61,17 +49,14 @@ const CoordenacaoApi = {
     // Cancelado/Agendado além de Realizado (fetchAtendimentosComContexto
     // filtra pra Realizado só depois, pra montar a aba Atendimentos).
     transformAtendimentoCompleto(record, planoMap, relatorioByAtendimentoId) {
-        const fields = record.fields || record;
-        const pacienteNome = this.firstOrValue(fields['Nome_Completo (from Paciente_Nome)']) || 'Paciente não informado';
-
         return {
             id: record.id,
-            pacienteNome,
-            terapeutaNome: this.firstOrValue(fields['Nome (from Terapeuta_Nome)']) || 'Terapeuta não informado',
-            dataHora: fields.Data_Hora || '',
-            planoSaude: planoMap.get(pacienteNome.trim().toLowerCase()) || '',
+            pacienteNome: record.paciente_nome || 'Paciente não informado',
+            terapeutaNome: record.terapeuta_nome || 'Terapeuta não informado',
+            dataHora: record.data_hora || '',
+            planoSaude: planoMap.get(record.paciente_id) || '',
             relatorio: relatorioByAtendimentoId.get(record.id) || null,
-            status: fields.Status_Presenca || 'Agendado',
+            status: record.status_presenca || 'Agendado',
         };
     },
 

@@ -148,8 +148,10 @@ async function loadEquipesOptions() {
         if (!response.ok) throw new Error(`Erro ao carregar equipes (${response.status})`);
 
         const data = await response.json();
-        const equipes = Array.isArray(data) ? data : data.records || [];
-        const nomes = equipes.map((e) => (e.fields || e).Nome_Equipe).filter(Boolean);
+        // 2026-09-08: /listar/equipes (backend novo) devolve nome_equipe
+        // achatado, sem "fields" pra desembrulhar.
+        const equipes = Array.isArray(data) ? data : [];
+        const nomes = equipes.map((e) => e.nome_equipe).filter(Boolean);
 
         nomes.forEach((nome) => {
             const option = document.createElement('option');

@@ -1,0 +1,93 @@
+{
+  "id": "eqtr07RegistrarUsuario",
+  "name": "Equitar - POST /registrar/usuario",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0007-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "registrar/usuario",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_registrar",
+      "name": "Registrar Usuario",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Corrige o bug antigo do Airtable: equipe_nome era aceito no payload mas\n-- o link Equipe do usuário criado ficava vazio (nunca resolvido). Aqui\n-- especialidade e equipe_nome são resolvidos por subquery de verdade.\n-- CTE sempre devolve 1 linha (LEFT JOIN preserva check_email mesmo\n-- quando o INSERT é pulado por e-mail duplicado) -- assim dá pra\n-- responder 409 de forma limpa em vez de estourar erro de constraint.\nWITH check_email AS (\n  SELECT EXISTS(SELECT 1 FROM usuarios WHERE email = $2) AS ja_existe\n),\ninserted AS (\n  INSERT INTO usuarios (nome, email, senha_hash, perfil_role, especialidade_id, numero_conselho, equipe_id, status)\n  SELECT $1, $2, crypt($3, gen_salt('bf')), $4::perfil_role,\n    (SELECT id FROM especialidades WHERE nome = $5),\n    NULLIF($6, ''),\n    (SELECT id FROM equipes WHERE nome_equipe = $7),\n    COALESCE($8::status_ativo, 'Ativo')\n  WHERE NOT (SELECT ja_existe FROM check_email)\n  RETURNING id, nome, email, perfil_role::text AS perfil_role, status::text AS status\n)\nSELECT (SELECT ja_existe FROM check_email) AS email_ja_existe, inserted.*\nFROM check_email LEFT JOIN inserted ON true",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.nome, $json.body.email, $json.body.senha, $json.body.perfil_role, $json.body.especialidade || null, $json.body.numero_conselho || '', $json.body.equipe_nome || null, $json.body.status || null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "if_conflito",
+      "name": "Email Ja Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [520, 300],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.email_ja_existe }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 }
+        }
+      }
+    },
+    {
+      "id": "respond_conflito",
+      "name": "Responder Email Duplicado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 420],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: false, mensagem: \"Já existe um usuário cadastrado com este e-mail.\" } }}",
+        "options": { "responseCode": 409 }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 180],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Usuário registrado com sucesso.\", usuario: { id: $json.id, nome: $json.nome, email: $json.email, perfilRole: $json.perfil_role, status: $json.status } } }}",
+        "options": { "responseCode": 201 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Registrar Usuario", "type": "main", "index": 0 }]] },
+    "Registrar Usuario": { "main": [[{ "node": "Email Ja Existe?", "type": "main", "index": 0 }]] },
+    "Email Ja Existe?": {
+      "main": [
+        [{ "node": "Responder Email Duplicado", "type": "main", "index": 0 }],
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

@@ -185,7 +185,10 @@ function selectPatient(patientId) {
     document.getElementById('patient-form-panel').classList.remove('hidden');
 
     document.getElementById('active-name').innerText = patient.name;
-    document.getElementById('active-id').innerText = `ATD-${patient.atendimentoNum || patient.id.slice(-6)}`;
+    // 2026-09-08: patient.id agora é um inteiro de verdade (Postgres),
+    // não mais um record ID tipo "recXXXXXXXXXXXXXXX" — .slice(-6) num
+    // number quebra (TypeError). Zero-pad no lugar do truncamento.
+    document.getElementById('active-id').innerText = `ATD-${patient.atendimentoNum || String(patient.id).padStart(4, '0')}`;
     document.getElementById('active-age').innerText = patient.age || 'Idade não informada';
     document.getElementById('active-specialty').innerText = patient.specialty;
 
@@ -465,7 +468,7 @@ function openHistoryModal() {
     const patient = patients.find((p) => p.id === selectedPatientId);
     if (!patient) return;
 
-    document.getElementById('modal-patient-info').innerText = `${patient.name} • ATD-${patient.atendimentoNum || patient.id.slice(-6)}`;
+    document.getElementById('modal-patient-info').innerText = `${patient.name} • ATD-${patient.atendimentoNum || String(patient.id).padStart(4, '0')}`;
     const container = document.getElementById('modal-history-content');
     container.innerHTML = '';
 

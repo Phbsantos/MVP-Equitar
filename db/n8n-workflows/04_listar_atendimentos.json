@@ -1,0 +1,55 @@
+{
+  "id": "eqtr04ListarAtendimentos",
+  "name": "Equitar - GET /listar/atendimentos",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0004-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "listar/atendimentos",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_listar",
+      "name": "Listar Atendimentos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Filtro de verdade no servidor (o antigo /listar/atendimentos no Airtable\n-- ignorava toda query string, testado e confirmado -- por isso o app\n-- inteiro precisava trazer tudo e filtrar no cliente). Cada filtro abaixo\n-- só se aplica quando o parâmetro correspondente é enviado -- \"$n IS NULL\"\n-- deixa a cláusula inerte quando o parâmetro não veio na query string.\nSELECT\n  a.id,\n  a.paciente_id,\n  p.nome_completo AS paciente_nome,\n  a.terapeuta_id,\n  t.nome AS terapeuta_nome,\n  a.supervisor_id,\n  s.nome AS supervisor_nome,\n  a.recorrencia_id,\n  a.data_hora,\n  a.tipo_atendimento::text AS tipo_atendimento,\n  a.status_presenca::text AS status_presenca,\n  a.evolucao_prontuario,\n  a.justificativa_falta,\n  a.nivel_engajamento::text AS nivel_engajamento,\n  a.recomendacao_pos_sessao,\n  a.sala\nFROM atendimentos a\nJOIN pacientes p ON p.id = a.paciente_id\nJOIN usuarios t ON t.id = a.terapeuta_id\nLEFT JOIN usuarios s ON s.id = a.supervisor_id\nWHERE ($1::int IS NULL OR a.terapeuta_id = $1)\n  AND ($2::int IS NULL OR a.paciente_id = $2)\n  AND ($3::date IS NULL OR a.data_hora::date = $3)\n  AND ($4::date IS NULL OR a.data_hora::date >= $4)\n  AND ($5::date IS NULL OR a.data_hora::date <= $5)\n  AND ($6::text IS NULL OR a.status_presenca::text = $6)\nORDER BY a.data_hora",
+        "options": {
+          "queryReplacement": "={{ [ $json.query.terapeuta_id || null, $json.query.paciente_id || null, $json.query.data || null, $json.query.data_inicio || null, $json.query.data_fim || null, $json.query.status_presenca || null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond1",
+      "name": "Responder Lista",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Listar Atendimentos", "type": "main", "index": 0 }]] },
+    "Listar Atendimentos": { "main": [[{ "node": "Responder Lista", "type": "main", "index": 0 }]] }
+  }
+}

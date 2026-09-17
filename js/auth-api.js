@@ -1,16 +1,16 @@
 const AuthApi = {
     SESSION_KEY: 'clinicasaas_session',
 
-    // 2026-08-26: formato da resposta na base nova (phbsantos1) —
-    // confirmado testando os 3 casos:
-    //   sucesso:  {"sucesso":true,"mensagem":"...","id":"rec...","Nome":"...","Especialidade":"..."}
-    //   erro:     {"sucesso":false,"mensagem":"E-mail ou senha inválidos."}
-    // Não é mais o registro cru do Airtable ({id, fields}) como na base
-    // antiga. Repare que a resposta de sucesso NÃO traz Perfil_Role, Email
-    // nem Status — sem Perfil_Role o role-guard.js não tem como restringir
-    // nada. Por isso, depois de confirmado o login, buscamos o registro
-    // completo em /listar/usuarios (por isso login.html agora também
-    // carrega usuarios-api.js).
+    // 2026-09-08: backend novo (n8n local + Postgres, ver js/config.js)
+    // devolve a sessão completa numa chamada só —
+    // {"sucesso":true,"mensagem":"...","usuario":{"id":1,"nome":"...",
+    // "email":"...","perfilRole":"...","especialidade":"...",
+    // "equipeId":1,"status":"Ativo"}} — ou {"sucesso":false,"mensagem":"..."}
+    // com HTTP 401 (credenciais inválidas) ou 403 (usuário inativo).
+    // Isso elimina o workaround que existia na base antiga: lá a resposta
+    // de sucesso vinha achatada e sem Perfil_Role/Email/Status, então era
+    // preciso completar a sessão com uma segunda busca em /listar/usuarios
+    // pelo id — não é mais necessário.
     async login(email, senha) {
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.USUARIO_LOGIN}`;
         const response = await fetch(url, {
@@ -26,32 +26,19 @@ const AuthApi = {
             data = null;
         }
 
-        if (!response.ok || !data || data.sucesso !== true || !data.id) {
+        if (!response.ok || !data || data.sucesso !== true || !data.usuario) {
             throw new Error((data && data.mensagem) || 'E-mail ou senha inválidos.');
         }
 
-        let usuarioCompleto = null;
-        try {
-            const usuarios = await UsuariosApi.fetchUsuarios();
-            usuarioCompleto = usuarios.find((u) => u.id === data.id) || null;
-        } catch (e) {
-            console.error('Falha ao buscar dados completos do usuário após login:', e);
-        }
-
-        if (!usuarioCompleto) {
-            console.warn(
-                `Login de ${data.id} confirmado, mas não achei o registro completo em /listar/usuarios — ` +
-                    'perfilRole/email/status vão ficar vazios nesta sessão.'
-            );
-        }
-
+        const usuario = data.usuario;
         return {
-            id: data.id,
-            nome: (usuarioCompleto && usuarioCompleto.nome) || data.Nome || '',
-            email: (usuarioCompleto && usuarioCompleto.email) || '',
-            perfilRole: (usuarioCompleto && usuarioCompleto.perfilRole) || '',
-            especialidade: (usuarioCompleto && usuarioCompleto.especialidade) || data.Especialidade || '',
-            status: (usuarioCompleto && usuarioCompleto.status) || 'Ativo',
+            id: usuario.id,
+            nome: usuario.nome || '',
+            email: usuario.email || '',
+            perfilRole: usuario.perfilRole || '',
+            especialidade: usuario.especialidade || '',
+            equipeId: usuario.equipeId ?? null,
+            status: usuario.status || 'Ativo',
         };
     },
 

@@ -1,0 +1,74 @@
+{
+  "id": "eqtr09RegistrarRelatorio",
+  "name": "Equitar - POST /registrar/relatorio",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0009-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "registrar/relatorio",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_inserir",
+      "name": "Inserir Relatorio",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO relatorios (tipo, paciente_id, atendimento_id, autor_id, data, conteudo, editado_por_id)\nVALUES (\n  $1::relatorio_tipo,\n  (SELECT id FROM pacientes WHERE nome_completo = $2),\n  $3::int,\n  (SELECT id FROM usuarios WHERE nome = $4),\n  $5::date,\n  $6,\n  (SELECT id FROM usuarios WHERE nome = $7)\n)\nRETURNING id, tipo::text AS tipo, paciente_id, atendimento_id, autor_id, data, conteudo",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.tipo, $json.body.paciente_nome, $json.body.atendimento_id || null, $json.body.autor_nome, $json.body.data, $json.body.conteudo, $json.body.editado_por_nome || null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "pg_atualizar_atendimento",
+      "name": "Atualizar Atendimento Se Fechando",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [520, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Corrige os dois bugs confirmados da base antiga:\n-- 1) status_presenca de Falta/Desmarcado/Cancelado sempre virava\n--    \"Realizado\" no Airtable, não importava o valor enviado. Aqui é um\n--    UPDATE direto -- grava exatamente o que veio.\n-- 2) Nivel_Engajamento e Recomendacao_Pos_Sessao não tinham campo próprio\n--    e só existiam concatenados em texto dentro do Conteudo do Relatorio.\n--    Aqui são colunas reais, atualizadas de verdade.\n-- Quando atendimento_id vem nulo (relatório Avulso, sem sessão associada)\n-- o WHERE id = NULL não bate em nenhuma linha -- UPDATE vira no-op. A CTE\n-- por fora garante que o node sempre devolve exatamente 1 item (senão,\n-- com 0 linhas afetadas o node não emitiria nada e o node de resposta\n-- logo depois nunca rodaria -- webhook ficaria pendurado até dar timeout).\n-- COALESCE preserva o valor já gravado quando o campo não veio neste\n-- payload (ex: só Justificativa_Falta sem mexer em Evolucao_Prontuario).\nWITH upd AS (\n  UPDATE atendimentos SET\n    status_presenca = COALESCE($2::status_presenca, status_presenca),\n    evolucao_prontuario = COALESCE($3, evolucao_prontuario),\n    justificativa_falta = COALESCE($4, justificativa_falta),\n    nivel_engajamento = COALESCE($5::nivel_engajamento, nivel_engajamento),\n    recomendacao_pos_sessao = COALESCE($6, recomendacao_pos_sessao)\n  WHERE id = $1::int\n  RETURNING id\n)\nSELECT (SELECT id FROM upd) AS atendimento_atualizado_id",
+        "options": {
+          "queryReplacement": "={{ (() => { const b = $('Webhook').first().json.body; return [ b.atendimento_id || null, b.status_presenca || null, (b.status_presenca === 'Realizado' ? b.conteudo : null), b.justificativa_falta || null, b.nivel_engajamento || null, b.recomendacao_pos_sessao || null ]; })() }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Relatório registrado com sucesso.\", relatorio: { id: $('Inserir Relatorio').first().json.id, tipo: $('Inserir Relatorio').first().json.tipo, pacienteId: $('Inserir Relatorio').first().json.paciente_id, atendimentoId: $('Inserir Relatorio').first().json.atendimento_id, data: $('Inserir Relatorio').first().json.data } } }}",
+        "options": { "responseCode": 201 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Inserir Relatorio", "type": "main", "index": 0 }]] },
+    "Inserir Relatorio": { "main": [[{ "node": "Atualizar Atendimento Se Fechando", "type": "main", "index": 0 }]] },
+    "Atualizar Atendimento Se Fechando": { "main": [[{ "node": "Responder Sucesso", "type": "main", "index": 0 }]] }
+  }
+}

@@ -664,10 +664,10 @@ async function loadCoordenacaoDados() {
 // os status, diferente de allAtendimentos que só tem Realizado). Não
 // depende do endpoint /coordenacao/metricas (nunca teve URL confirmada).
 //
-// Atenção: por um bug conhecido no n8n, Falta/Desmarcado/Cancelado ainda
-// são gravados como Status_Presenca "Realizado" na base — então até esse
-// bug ser corrigido no backend, os indicadores de Falta/Desmarcado/
-// Cancelado abaixo tendem a ficar subestimados (e "Realizados" superestimado).
+// 2026-09-08: o bug do n8n/Airtable que gravava Falta/Desmarcado/Cancelado
+// sempre como "Realizado" foi corrigido no backend novo (n8n local +
+// Postgres, ver db/n8n-workflows/09_registrar_relatorio.json) — os
+// indicadores abaixo não sofrem mais dessa subestimação.
 // -----------------------------------------------------------------------
 function isFalta(status) {
     return status === 'Falta sem Aviso';

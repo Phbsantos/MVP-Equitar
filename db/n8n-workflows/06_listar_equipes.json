@@ -1,0 +1,53 @@
+{
+  "id": "eqtr06ListarEquipes",
+  "name": "Equitar - GET /listar/equipes",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0006-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "listar/equipes",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_listar",
+      "name": "Listar Equipes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "-- Membros era um rollup calculado no Airtable; aqui é um json_agg de\n-- verdade a partir de usuarios.equipe_id (a relação real), já vindo com\n-- nome pronto, sem precisar resolver link nenhum no cliente.\nSELECT\n  e.id,\n  e.nome_equipe,\n  e.supervisor_id,\n  s.nome AS supervisor_nome,\n  COALESCE(\n    json_agg(json_build_object('id', u.id, 'nome', u.nome)) FILTER (WHERE u.id IS NOT NULL),\n    '[]'\n  ) AS membros\nFROM equipes e\nLEFT JOIN usuarios s ON s.id = e.supervisor_id\nLEFT JOIN usuarios u ON u.equipe_id = e.id\nGROUP BY e.id, e.nome_equipe, e.supervisor_id, s.nome\nORDER BY e.nome_equipe",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond1",
+      "name": "Responder Lista",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Listar Equipes", "type": "main", "index": 0 }]] },
+    "Listar Equipes": { "main": [[{ "node": "Responder Lista", "type": "main", "index": 0 }]] }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "eqtr03ListarPacientes",
+  "name": "Equitar - GET /listar/pacientes",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0003-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "listar/pacientes",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_listar",
+      "name": "Listar Pacientes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT\n  p.id,\n  p.nome_completo,\n  p.data_nascimento,\n  p.responsavel_nome,\n  p.telefone_whatsapp,\n  p.status::text AS status,\n  p.terapeuta_responsavel_id,\n  ut.nome AS terapeuta_responsavel_nome,\n  p.plano_id,\n  pl.nome AS plano_nome\nFROM pacientes p\nLEFT JOIN usuarios ut ON ut.id = p.terapeuta_responsavel_id\nLEFT JOIN planos pl ON pl.id = p.plano_id\nORDER BY p.nome_completo",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond1",
+      "name": "Responder Lista",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Listar Pacientes", "type": "main", "index": 0 }]] },
+    "Listar Pacientes": { "main": [[{ "node": "Responder Lista", "type": "main", "index": 0 }]] }
+  }
+}

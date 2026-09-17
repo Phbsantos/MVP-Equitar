@@ -23,10 +23,10 @@ const CadastroApi = {
     // formulário de cadastros.html (só nome, email, perfil, especialidade,
     // status hoje) — aceitos aqui como opcionais pra quando a UI adicionar.
     //
-    // ATENÇÃO (2026-08-26): testado direto contra /registrar/usuario — o
-    // campo equipe_nome é aceito na requisição mas o link Equipe do
-    // registro criado fica vazio (não é resolvido pelo nome no n8n). Não
-    // confiar nisso até corrigirem lá.
+    // 2026-09-08: equipe_nome agora resolve de verdade pro equipe_id do
+    // usuário criado — corrigido no workflow novo (n8n local + Postgres,
+    // ver db/n8n-workflows/07_registrar_usuario.json), que resolve por
+    // subquery SQL em vez de depender do Airtable resolver o link sozinho.
     buildUsuarioPayload(formData) {
         return {
             nome: formData.nome,
@@ -48,9 +48,9 @@ const CadastroApi = {
     // formData.planoSaude ainda não tem campo em cadastros.html — aceito
     // aqui como opcional pra quando a UI adicionar.
     //
-    // ATENÇÃO (2026-08-26): mesmo problema do usuário — terapeuta_responsavel_nome
-    // é aceito na requisição mas o link Terapeuta_Responsavel do paciente
-    // criado fica vazio. Não confiar nisso até corrigirem no n8n.
+    // 2026-09-08: terapeuta_responsavel_nome idem — resolve de verdade
+    // agora (mesma correção do workflow novo, ver
+    // db/n8n-workflows/08_registrar_paciente.json).
     buildPacientePayload(formData) {
         return {
             nome_completo: formData.nomeCompleto,
@@ -68,10 +68,12 @@ const CadastroApi = {
         return this.postJson(url, payload);
     },
 
-    // Novo (2026-08-26): /registrar/relatorio já existe e foi testado com
-    // sucesso — inclusive resolve paciente_nome e autor_nome pros links
-    // corretos (diferente de usuario/paciente, que não resolvem). Sem UI
-    // ainda em relatorios.html — só a função de API por enquanto.
+    // /registrar/relatorio resolve paciente_nome/autor_nome/editado_por_nome
+    // pra FK de verdade. Sem UI ainda em relatorios.html — só a função de
+    // API por enquanto. Campos de fechamento de atendimento (status_presenca,
+    // justificativa_falta, nivel_engajamento, recomendacao_pos_sessao) não
+    // entram aqui — ver ApiService.buildRegisterPayload (js/api.js) pro
+    // fluxo real de fechamento usado em index.html/supervisor.html.
     buildRelatorioPayload(formData) {
         return {
             tipo: formData.tipo,
@@ -89,12 +91,14 @@ const CadastroApi = {
         return this.postJson(url, payload);
     },
 
-    // /criar/atendimento — testado e funcionando (2026-08-26, ver
+    // /criar/atendimento — testado e funcionando (ver
     // SupervisorApi.agendarSessaoAvulsa). Centralizado aqui pra ser
     // reaproveitado por qualquer tela que precise criar um atendimento real
     // (ex: geração de atendimentos a partir de uma Recorrência em
-    // cadastros.html — a Recorrência em si ainda não tem tabela/endpoint
-    // próprio no n8n, mas os Atendimentos que ela gera são de verdade).
+    // cadastros.html — a tabela `recorrencias` já existe de verdade no
+    // Postgres desde 2026-09-07, mas ainda não tem endpoint de
+    // criar/listar no n8n; a feature continua session-only por enquanto,
+    // ver js/recorrencia.js).
     buildAtendimentoPayload(formData) {
         return {
             paciente_nome: formData.pacienteNome,

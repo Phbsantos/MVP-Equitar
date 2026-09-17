@@ -1,0 +1,131 @@
+{
+  "id": "eqtr01UsuarioLogin",
+  "name": "Equitar - POST /usuario/login",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0001-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "usuario/login",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_login",
+      "name": "Buscar Usuario",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT\n  u.id,\n  u.nome,\n  u.email,\n  u.perfil_role,\n  u.status::text AS status,\n  u.equipe_id,\n  e.nome AS especialidade,\n  (u.id IS NOT NULL) AS encontrado,\n  COALESCE(u.senha_hash = crypt($2, u.senha_hash), false) AS senha_ok\nFROM (SELECT $1::text AS email_busca) params\nLEFT JOIN usuarios u ON u.email = params.email_busca\nLEFT JOIN especialidades e ON e.id = u.especialidade_id",
+        "options": {
+          "queryReplacement": "={{ [$json.body.email, $json.body.senha] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "if_credenciais",
+      "name": "Credenciais Validas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [520, 300],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.encontrado && $json.senha_ok }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 }
+        }
+      }
+    },
+    {
+      "id": "if_ativo",
+      "name": "Usuario Ativo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [780, 200],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "Ativo",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 }
+        }
+      }
+    },
+    {
+      "id": "respond_sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1040, 100],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: true, mensagem: \"Login realizado com sucesso.\", usuario: { id: $json.id, nome: $json.nome, email: $json.email, perfilRole: $json.perfil_role, especialidade: $json.especialidade, equipeId: $json.equipe_id, status: $json.status } } }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond_inativo",
+      "name": "Responder Usuario Inativo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1040, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: false, mensagem: \"Usuário inativo. Contate o administrador.\" } }}",
+        "options": { "responseCode": 403 }
+      }
+    },
+    {
+      "id": "respond_invalido",
+      "name": "Responder Credenciais Invalidas",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [780, 460],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { sucesso: false, mensagem: \"E-mail ou senha inválidos.\" } }}",
+        "options": { "responseCode": 401 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Buscar Usuario", "type": "main", "index": 0 }]] },
+    "Buscar Usuario": { "main": [[{ "node": "Credenciais Validas?", "type": "main", "index": 0 }]] },
+    "Credenciais Validas?": {
+      "main": [
+        [{ "node": "Usuario Ativo?", "type": "main", "index": 0 }],
+        [{ "node": "Responder Credenciais Invalidas", "type": "main", "index": 0 }]
+      ]
+    },
+    "Usuario Ativo?": {
+      "main": [
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }],
+        [{ "node": "Responder Usuario Inativo", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

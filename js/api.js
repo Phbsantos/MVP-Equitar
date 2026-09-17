@@ -1,41 +1,18 @@
 const ApiService = {
-    firstOrValue(value) {
-        if (Array.isArray(value)) return value[0] || '';
-        return value || '';
-    },
-
-    // 2026-08-26: na base nova (phbsantos1), campos de link tipo
-    // Paciente_Nome / Terapeuta_Nome / Supervisor_Nome passaram a devolver
-    // o record ID do Airtable (ex: "recQ6JtKNHEzyBjUG"), não mais o nome.
-    // O nome legível vem num campo de lookup separado, com o nome que o
-    // Airtable gera automaticamente ao criar o lookup — tipo
-    // "Nome_Completo (from Paciente_Nome)". Esse helper tenta o lookup
-    // primeiro e só cai pro campo de link puro se o valor não parecer um
-    // record ID (pra continuar funcionando caso algum workflow antigo
-    // ainda devolva o nome direto em Paciente_Nome).
-    looksLikeRecordId(value) {
-        return typeof value === 'string' && /^rec[a-zA-Z0-9]{14,}$/.test(value);
-    },
-
-    resolveLinkedName(fields, linkField, lookupField) {
-        const lookupValue = this.firstOrValue(fields[lookupField]);
-        if (lookupValue) return lookupValue;
-
-        const linkValue = this.firstOrValue(fields[linkField]);
-        if (linkValue && !this.looksLikeRecordId(linkValue)) return linkValue;
-
-        return '';
-    },
-
+    // 2026-09-08: backend novo (n8n local + Postgres) não tem mais
+    // variantes de grafia pro Status_Presenca — o enum status_presenca no
+    // banco tem um valor canônico só por estado (ver
+    // db/migrations/001_init_schema.sql). Os dois mapas abaixo continuam
+    // existindo só porque o app usa um vocabulário interno mais curto
+    // (pending/realizado/falta/desmarcado/cancelado) que não bate 1:1 com
+    // os valores do enum.
     mapApiStatusToInternal(apiStatus) {
         const map = {
-            'Agendado': 'pending',
-            'Realizado': 'realizado',
+            Agendado: 'pending',
+            Realizado: 'realizado',
             'Falta sem Aviso': 'falta',
             'Desmarcado com Aviso': 'desmarcado',
-            'Desmarcado c/ Aviso': 'desmarcado',
             'Cancelado pelo Terapeuta': 'cancelado',
-            'Cancelado Terapeuta': 'cancelado',
         };
         return map[apiStatus] || 'pending';
     },
@@ -74,35 +51,29 @@ const ApiService = {
         return `${day}/${month}/${year}`;
     },
 
+    // 2026-09-08: linha reta agora — /listar/atendimentos devolve objetos
+    // já achatados (paciente_nome, terapeuta_id, terapeuta_nome, etc.),
+    // sem "fields", sem lookup, sem precisar adivinhar se um valor "parece"
+    // um record ID do Airtable. id/paciente_id/terapeuta_id já são
+    // inteiros de verdade — comparam certo com session.id (também inteiro
+    // desde o login novo, ver js/auth-api.js).
     transformAtendimento(record) {
-        const fields = record.fields || {};
-        const name =
-            this.resolveLinkedName(fields, 'Paciente_Nome', 'Nome_Completo (from Paciente_Nome)') ||
-            fields.Nome ||
-            `Paciente #${record.id.slice(-6)}`;
-        const therapistName = this.resolveLinkedName(fields, 'Terapeuta_Nome', 'Nome (from Terapeuta_Nome)');
-        // Terapeuta_Nome (o campo de link puro) já vem como o record ID do
-        // Airtable — é exatamente isso que queremos aqui, sem precisar de
-        // lookup nenhum. Filtrar por ID é exato (sem risco de nome parcial
-        // batendo errado) e session.id já É esse mesmo ID, desde o login.
-        const therapistId = this.firstOrValue(fields.Terapeuta_Nome);
-
         return {
             id: record.id,
-            patientKey: name.toLowerCase().trim(),
-            name,
-            therapistName,
-            therapistId,
-            age: fields.Idade_Paciente || '',
-            time: this.formatTime(fields.Data_Hora),
-            specialty: fields.Especialidade || 'Terapia Ocupacional',
-            status: this.mapApiStatusToInternal(fields.Status_Presenca),
-            notes: fields.Evolucao_Prontuario || '',
-            justification: fields.Justificativa_Falta || '',
-            engagement: fields.Nivel_Engajamento || 'adequado',
-            nextSteps: fields.Recomendacao_Pos_Sessao || '',
-            dataHora: fields.Data_Hora,
-            apiStatus: fields.Status_Presenca || 'Agendado',
+            patientKey: (record.paciente_nome || '').toLowerCase().trim(),
+            name: record.paciente_nome || `Paciente #${record.paciente_id}`,
+            therapistName: record.terapeuta_nome || '',
+            therapistId: record.terapeuta_id,
+            age: '',
+            time: this.formatTime(record.data_hora),
+            specialty: record.especialidade || 'Terapia Ocupacional',
+            status: this.mapApiStatusToInternal(record.status_presenca),
+            notes: record.evolucao_prontuario || '',
+            justification: record.justificativa_falta || '',
+            engagement: record.nivel_engajamento || 'adequado',
+            nextSteps: record.recomendacao_pos_sessao || '',
+            dataHora: record.data_hora,
+            apiStatus: record.status_presenca || 'Agendado',
         };
     },
 
@@ -120,18 +91,24 @@ const ApiService = {
             }));
     },
 
-    // 2026-08-26: decisão — filtragem fica 100% no cliente. A API
-    // /listar/atendimentos ignora qualquer query string (testado), então
-    // a rota escolhida é: trazer tudo e filtrar aqui. Filtro por ID do
-    // terapeuta (session.id, o record ID do Airtable de quem logou), não
-    // por nome — exato, sem ambiguidade de maiúsculas/acento/nome parcial.
-    // Sem session.id não filtra nada e não mostra nada (falha fechada:
-    // é dado de paciente, não é pra vazar por engano).
+    // 2026-09-08: /listar/atendimentos agora aceita filtro de verdade no
+    // servidor (terapeuta_id e data), corrigindo o problema documentado —
+    // a API antiga (Airtable) ignorava qualquer query string, então o app
+    // inteiro precisava trazer tudo e filtrar aqui. Filtro por ID do
+    // terapeuta continua sendo o certo (exato, sem depender de nome) —
+    // agora feito no Postgres via WHERE em vez de no JS.
     async fetchAtendimentosDia(date) {
         const session = AuthApi.getSession();
         const terapeutaId = session && session.id;
 
-        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}`;
+        // Falha fechada: sem terapeuta autenticado, não busca nada — é
+        // dado de paciente, não é pra vazar por engano.
+        if (!terapeutaId) return [];
+
+        const params = new URLSearchParams({ terapeuta_id: terapeutaId });
+        if (date) params.set('data', date);
+
+        const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.LISTAR_ATENDIMENTOS}?${params.toString()}`;
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -139,38 +116,16 @@ const ApiService = {
         }
 
         const data = await response.json();
-        const records = Array.isArray(data) ? data : data.records || [];
+        const records = Array.isArray(data) ? data : [];
 
-        return records
-            .map((record) => this.transformAtendimento(record))
-            .filter((patient) => {
-                const matchesTerapeuta = Boolean(terapeutaId) && patient.therapistId === terapeutaId;
-                const matchesData = !date || (patient.dataHora || '').slice(0, 10) === date;
-                return matchesTerapeuta && matchesData;
-            })
-            .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+        return records.map((record) => this.transformAtendimento(record)).sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
     },
 
-    // 2026-08-26: confirmado com a Roseane — fechar um atendimento não é
-    // um "update" nele. É criar um Relatorio (Tipo = Evolução) linkado via
-    // atendimento_id em /registrar/relatorio.
-    //
-    // As duas primeiras tentativas de testar isso (na mesma sessão) deram
-    // HTTP 200 com corpo vazio e pareciam confirmar um bug no workflow —
-    // acabou sendo falso alarme: era a codificação UTF-8 do meu próprio
-    // teste em curl (texto acentuado tipo "Evolução" chegando corrompido,
-    // ex: "Sess�o Regular"), não um bug do n8n. Retestado enviando o corpo
-    // por arquivo (bypassando o shell) e funcionou: cria o Relatorio e
-    // resolve corretamente os links Paciente/Autor/Atendimento. O fetch()
-    // do navegador sempre serializa UTF-8 certo via JSON.stringify, então
-    // esse problema nunca teria afetado o app de verdade — só meu teste.
-    //
-    // ATUALIZAÇÃO 2026-08-26: o caminho de conclusão (status "realizado")
-    // foi corrigido no n8n e está confirmado funcionando — testado 2x do
-    // zero (atendimento novo → criar Relatorio com atendimento_id +
-    // status_presenca → Status_Presenca e Evolucao_Prontuario do Atendimento
-    // são atualizados de verdade). Falta/Desmarcado/Cancelado ainda não
-    // foram testados nesse fluxo (fora de escopo por enquanto, a pedido).
+    // Fechar um atendimento não é um "update" nele — é criar um Relatorio
+    // (Tipo = Evolução) linkado via atendimento_id em /registrar/relatorio,
+    // que agora também atualiza Status_Presenca/Evolucao_Prontuario/
+    // Justificativa_Falta/Nivel_Engajamento/Recomendacao_Pos_Sessao do
+    // Atendimento linkado — todos campos reais agora, ver buildRegisterPayload.
     async registerAtendimento(payload) {
         const url = `${CONFIG.API_BASE}${CONFIG.ENDPOINTS.RELATORIO_REGISTRAR}`;
         const response = await fetch(url, {
@@ -194,30 +149,17 @@ const ApiService = {
         }
     },
 
-    // 2026-08-26: fluxo de conclusão (caso Realizado) testado e
-    // confirmado funcionando — criar o Relatorio com atendimento_id +
-    // status_presenca de fato atualiza Status_Presenca e Evolucao_Prontuario
-    // do Atendimento linkado. O que continua confirmado como NÃO suportado:
-    // Nivel_Engajamento e Recomendacao_Pos_Sessao não são gravados mesmo
-    // enviados soltos no payload (testado) — por isso continuam
-    // concatenados dentro do texto de Conteudo, igual o app antigo fazia.
-    // Falta/Desmarcado/Cancelado ainda não foram testados neste fluxo
-    // (fora de escopo por enquanto).
+    // 2026-09-08: backend novo já tem coluna própria pra Nivel_Engajamento
+    // e Recomendacao_Pos_Sessao em Atendimentos (ver
+    // db/migrations/001_init_schema.sql) — não precisam mais ser
+    // concatenados dentro do texto de "conteudo" como no Airtable antigo.
+    // "conteudo" agora carrega só a evolução/justificativa de verdade;
+    // os outros campos vão soltos no payload e o workflow
+    // /registrar/relatorio grava cada um na coluna certa.
     buildRegisterPayload(patient, formData) {
         const isRealizado = formData.status === 'realizado';
         const isFaltaOuDesmarcado = formData.status === 'falta' || formData.status === 'desmarcado';
         const session = AuthApi.getSession();
-
-        const conteudoParts = [];
-        if (isRealizado) {
-            if (formData.notes) conteudoParts.push(formData.notes);
-            if (formData.engagement) {
-                conteudoParts.push(`Engajamento: ${this.engagementLabels[formData.engagement] || formData.engagement}`);
-            }
-            if (formData.nextSteps) conteudoParts.push(`Recomendação pós-sessão: ${formData.nextSteps}`);
-        } else if (isFaltaOuDesmarcado) {
-            conteudoParts.push(`Justificativa: ${formData.justification || ''}`);
-        }
 
         return {
             tipo: 'Evolução',
@@ -225,12 +167,12 @@ const ApiService = {
             atendimento_id: patient.id,
             autor_nome: (session && session.nome) || CONFIG.TERAPEUTA,
             data: (patient.dataHora || '').slice(0, 10),
-            conteudo: conteudoParts.join('\n\n'),
+            conteudo: isRealizado ? formData.notes || '' : `Justificativa: ${formData.justification || ''}`,
             editado_por_nome: null,
-            // Enviados também soltos, caso o workflow venha a usar campos
-            // próprios em vez de só o texto de conteudo (não confirmado).
             status_presenca: this.mapInternalStatusToApi(formData.status),
             justificativa_falta: isFaltaOuDesmarcado ? formData.justification : null,
+            nivel_engajamento: isRealizado ? formData.engagement || null : null,
+            recomendacao_pos_sessao: isRealizado ? formData.nextSteps || null : null,
         };
     },
 };

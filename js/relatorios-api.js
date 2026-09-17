@@ -1,9 +1,4 @@
 const RelatoriosApi = {
-    firstOrValue(value) {
-        if (Array.isArray(value)) return value[0] || '';
-        return value || '';
-    },
-
     formatDateBrasilia(isoDate) {
         if (!isoDate) return '--';
         return new Date(isoDate).toLocaleDateString('pt-BR', {
@@ -11,54 +6,27 @@ const RelatoriosApi = {
         });
     },
 
-    // 2026-08-26: /listar/relatorios corrigido no n8n — agora devolve a
-    // tabela Relatorios de verdade, não mais uma cópia de Atendimentos.
-    // Formato confirmado (via GET real e via POST /registrar/relatorio):
-    //   Tipo ("Evolução" | "Avulso"), Conteudo, Data (às vezes só data,
-    //   às vezes ISO com T00:00:00 — nunca carrega hora de verdade, então
-    //   não exibimos horário aqui), Paciente (link) + "Nome_Completo (from
-    //   Paciente)" (lookup), Autor (link) + "Nome (from Autor)" (lookup),
-    //   Atendimento (link, só presente em Evolução linkada a uma sessão),
-    //   Editado_Por (texto simples, não é link), Relatorio_ID (primary
-    //   field automático).
+    // 2026-09-08: /listar/relatorios (backend novo) devolve objetos
+    // achatados: tipo, paciente_id, paciente_nome, autor_id, autor_nome,
+    // data, conteudo, atendimento_id, editado_por_nome — tudo já resolvido
+    // via JOIN no Postgres, sem lookup nem "fields" pra desembrulhar.
     transformRecord(record) {
-        const fields = record.fields || record;
-
         return {
             id: record.id,
-            tipo: fields.Tipo || 'Evolução',
-            patientName: this.firstOrValue(fields['Nome_Completo (from Paciente)']) || 'Paciente não informado',
-            authorName: this.firstOrValue(fields['Nome (from Autor)']) || 'Autor não informado',
-            date: this.formatDateBrasilia(fields.Data),
-            conteudo: fields.Conteudo || 'Sem conteúdo registrado.',
-            atendimentoId: this.firstOrValue(fields.Atendimento) || null,
-            editadoPor: fields.Editado_Por || '',
-            dataRaw: fields.Data,
+            tipo: record.tipo || 'Evolução',
+            patientName: record.paciente_nome || 'Paciente não informado',
+            authorName: record.autor_nome || 'Autor não informado',
+            date: this.formatDateBrasilia(record.data),
+            conteudo: record.conteudo || 'Sem conteúdo registrado.',
+            atendimentoId: record.atendimento_id || null,
+            editadoPor: record.editado_por_nome || '',
+            dataRaw: record.data,
         };
     },
 
-    normalizeRecordsResponse(data) {
-        if (data == null) {
-            return [];
-        }
-
-        if (Array.isArray(data)) {
-            return data.filter((item) => item && (item.fields || item.id));
-        }
-
-        if (Array.isArray(data.records)) {
-            return data.records.filter((item) => item && (item.fields || item.id));
-        }
-
-        if (data.fields || data.id) {
-            return [data];
-        }
-
-        return [];
-    },
-
-    // /listar/relatorios (como os outros /listar/*) ignora qualquer query
-    // string — testado. O filtro do formulário é aplicado aqui no cliente.
+    // /listar/relatorios não aceita filtro de servidor ainda (só
+    // /listar/atendimentos ganhou isso na correção de 2026-09-08) — o
+    // filtro do formulário continua sendo aplicado aqui no cliente.
     applyClientFilters(records, filters) {
         const nomeTermo = (filters.paciente_nome || '').trim().toLowerCase();
         const dataInicio = filters.data_inicio ? new Date(filters.data_inicio) : null;
@@ -86,10 +54,11 @@ const RelatoriosApi = {
         }
 
         const data = await response.json();
-        const records = this.normalizeRecordsResponse(data)
+        const records = Array.isArray(data) ? data : [];
+        const transformados = records
             .map((record) => this.transformRecord(record))
             .sort((a, b) => new Date(b.dataRaw) - new Date(a.dataRaw));
 
-        return this.applyClientFilters(records, filters);
+        return this.applyClientFilters(transformados, filters);
     },
 };

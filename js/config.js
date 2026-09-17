@@ -2,53 +2,50 @@ const CONFIG = {
     TERAPEUTA: 'Dr. João Silva',
     TERAPEUTA_CREFITO: 'CREFITO-3/12345-TO',
     SUPERVISOR_NOME: 'Dr. João Silva',
-    // 2026-08-27: base de produção mudou de phbsantos1 pra phbsantos2.
-    // Antes dela, era phbsantos1 (troca em 2026-08-26); a phbsantos original
-    // (sem número) já tinha ficado pra trás nessa data também. Nenhuma
-    // versão anterior deve mais ser usada.
-    API_BASE: 'https://phbsantos2.app.n8n.cloud/webhook/api',
+    // 2026-09-08: backend saiu do n8n cloud + Airtable e passou a rodar
+    // 100% local — n8n self-hosted em Docker (container n8n_app) falando
+    // com Postgres local (container postgres_n8n, banco equitar_db), ver
+    // db/n8n-workflows/ (schema em db/migrations/). Os paths de cada
+    // endpoint não mudaram (o path do webhook é o mesmo em cada workflow
+    // novo) — só a base. Nenhuma versão n8n cloud (phbsantos/phbsantos1/
+    // phbsantos2) deve mais ser usada.
+    API_BASE: 'http://localhost:5678/webhook',
     ENDPOINTS: {
         // --- Listagem (GET) ---
         LISTAR_USUARIOS: '/listar/usuarios',
         LISTAR_PACIENTES: '/listar/pacientes',
+        // 2026-09-08: agora aceita filtros de verdade na query string
+        // (terapeuta_id, paciente_id, data, data_inicio, data_fim,
+        // status_presenca) — o workflow novo resolve isso no Postgres.
+        // Nenhuma tela ainda manda esses parâmetros (todas continuam
+        // buscando tudo e filtrando no cliente, padrão estabelecido);
+        // migrar pra filtro de servidor é trabalho futuro, não bloqueia nada.
         LISTAR_ATENDIMENTOS: '/listar/atendimentos',
-        // Corrigido no n8n em 2026-08-26 (antes devolvia a mesma tabela de
-        // /listar/atendimentos) — hoje devolve a tabela Relatorios de
-        // verdade: Tipo, Conteudo, Paciente/Autor (link+lookup), Data,
-        // Atendimento (só em Evolução linkada), Editado_Por (texto simples).
         LISTAR_RELATORIOS: '/listar/relatorios',
-        // Corrigido no n8n em 2026-08-26 (mesmo bug do item acima) — hoje
-        // devolve Nome_Equipe, Supervisor (link+lookup) e Membros (rollup
-        // já com os nomes prontos, sem precisar resolver link).
         LISTAR_EQUIPES: '/listar/equipes',
 
         // --- Criação (POST) ---
-        // Aceito como está por decisão da Roseane (2026-08-26): equipe_nome
-        // é aceito no payload mas o link Equipe do usuário criado fica
-        // vazio. Não é mais tratado como pendência.
+        // 2026-09-08: equipe_nome agora resolve de verdade pro equipe_id do
+        // usuário criado (era um link vazio no Airtable, corrigido no
+        // workflow novo via subquery SQL).
         USUARIO_REGISTRAR: '/registrar/usuario',
-        // Aceito como está por decisão da Roseane (2026-08-26): mesmo caso
-        // — terapeuta_responsavel_nome é aceito mas o link
-        // Terapeuta_Responsavel do paciente criado fica vazio.
+        // 2026-09-08: terapeuta_responsavel_nome idem — resolve de verdade
+        // agora (mesma correção, mesmo motivo).
         PACIENTE_REGISTRAR: '/registrar/paciente',
-        // Testado e funcionando (2026-08-26), inclusive com atendimento_id
-        // preenchido (fecha um atendimento existente): resolve os links
-        // Paciente/Autor/Atendimento e atualiza Status_Presenca +
-        // Evolucao_Prontuario do Atendimento linkado. Nivel_Engajamento e
-        // Recomendacao_Pos_Sessao continuam sem campo próprio — são
-        // concatenados no texto de Conteudo (ver ApiService.buildRegisterPayload).
+        // 2026-09-08: dois bugs confirmados corrigidos no workflow novo —
+        // (1) status_presenca de Falta/Desmarcado/Cancelado não vira mais
+        // "Realizado" à força; (2) nivel_engajamento e
+        // recomendacao_pos_sessao agora são campos próprios no payload,
+        // gravados em colunas reais — não precisam mais ser concatenados
+        // dentro de conteudo (ver ApiService.buildRegisterPayload).
         RELATORIO_REGISTRAR: '/registrar/relatorio',
-        // Testado e funcionando (2026-08-26).
         ATENDIMENTO_CRIAR: '/criar/atendimento',
 
-        // Login: testado e funcionando (corrigido em 2026-08-26, depois de
-        // começar quebrado com HTTP 200 vazio pra tudo). Resposta de
-        // sucesso vem achatada (não é o {id, fields} cru do Airtable) e sem
-        // Perfil_Role/Email/Status — por isso AuthApi.login() completa a
-        // sessão com uma segunda busca em /listar/usuarios pelo id.
-        // Ainda não retestado especificamente na base phbsantos2 (2026-08-27)
-        // — vale confirmar os 3 casos (sucesso, e-mail errado, senha errada)
-        // de novo já que mudou de instância.
+        // 2026-09-08: resposta de sucesso agora vem completa em
+        // {sucesso, mensagem, usuario:{id, nome, email, perfilRole,
+        // especialidade, equipeId, status}} numa chamada só — não precisa
+        // mais da segunda busca em /listar/usuarios que o AuthApi.login()
+        // fazia pra completar perfilRole/email/status.
         USUARIO_LOGIN: '/usuario/login',
         // Agenda filtrada por equipe do supervisor: sem endpoint dedicado —
         // reconstruído no cliente (ver SupervisorApi.fetchEquipeMembroIds/

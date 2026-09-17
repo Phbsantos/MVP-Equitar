@@ -1,0 +1,53 @@
+{
+  "id": "eqtr02ListarUsuarios",
+  "name": "Equitar - GET /listar/usuarios",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b1a1c1d1-0002-4000-8000-000000000001",
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "listar/usuarios",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg_listar",
+      "name": "Listar Usuarios",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [260, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT\n  u.id,\n  u.nome,\n  u.email,\n  u.perfil_role::text AS perfil_role,\n  u.status::text AS status,\n  u.numero_conselho,\n  u.especialidade_id,\n  e.nome AS especialidade,\n  u.equipe_id,\n  eq.nome_equipe AS equipe_nome\nFROM usuarios u\nLEFT JOIN especialidades e ON e.id = u.especialidade_id\nLEFT JOIN equipes eq ON eq.id = u.equipe_id\nORDER BY u.nome",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "eqtrPgCredential01", "name": "Equitar Postgres" }
+      }
+    },
+    {
+      "id": "respond1",
+      "name": "Responder Lista",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Listar Usuarios", "type": "main", "index": 0 }]] },
+    "Listar Usuarios": { "main": [[{ "node": "Responder Lista", "type": "main", "index": 0 }]] }
+  }
+}

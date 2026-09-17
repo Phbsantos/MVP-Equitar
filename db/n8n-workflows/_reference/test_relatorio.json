@@ -1,0 +1,12 @@
+{
+  "tipo": "Evolução",
+  "paciente_nome": "Enzo Martins",
+  "atendimento_id": 12,
+  "autor_nome": "Fernanda Duarte",
+  "data": "2026-09-11",
+  "conteudo": "Família avisou com antecedência que não poderia comparecer.",
+  "status_presenca": "Desmarcado com Aviso",
+  "justificativa_falta": "Família avisou por telefone.",
+  "nivel_engajamento": "parcial",
+  "recomendacao_pos_sessao": "Remarcar para a próxima semana."
+}
