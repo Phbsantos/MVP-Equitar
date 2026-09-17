@@ -82,6 +82,18 @@ async function loadSchedule(date = getSelectedDate(), options = {}) {
 
 function renderPatientList(searchTerm = '') {
     const container = document.getElementById('patient-list-container');
+
+    // #patient-form-panel pode estar morando dentro do slot de um card
+    // (accordion mobile) — se estiver, container.innerHTML = '' abaixo
+    // destruiria o painel junto com os cards antigos. Estaciona ele num
+    // lugar seguro (fora da lista) antes de limpar, relocatePatientFormPanel
+    // no fim desta função devolve pro lugar certo depois do re-render.
+    const panelEl = document.getElementById('patient-form-panel');
+    const safeHost = document.getElementById('patient-detail-panel');
+    if (panelEl && safeHost && !safeHost.contains(panelEl)) {
+        safeHost.appendChild(panelEl);
+    }
+
     container.innerHTML = '';
 
     const filtered = patients.filter((p) => {
@@ -109,13 +121,14 @@ function renderPatientList(searchTerm = '') {
 
     filtered.forEach((p) => {
         const isSelected = p.id === selectedPatientId;
+        // No mobile/tablet (<lg), o card vira um accordion: o cabeçalho
+        // fica num sub-div clicável separado do slot do formulário, pra
+        // clicar dentro do formulário (radios, textarea) não borbulhar pro
+        // clique do card e fechar o accordion sozinho.
         const card = document.createElement('div');
-        card.className = `p-3 rounded-xl cursor-pointer transition border ${
-            isSelected
-                ? 'bg-clinical-50/80 border-clinical-500 shadow-sm'
-                : 'bg-white hover:bg-slate-50 border-transparent hover:border-slate-200'
+        card.className = `rounded-xl border overflow-hidden transition ${
+            isSelected ? 'border-clinical-500 shadow-sm' : 'border-transparent hover:border-slate-200'
         }`;
-        card.onclick = () => selectPatient(p.id);
 
         let badgeClass = 'bg-amber-100 text-amber-800 border-amber-200';
         let badgeText = 'Pendente';
@@ -148,28 +161,76 @@ function renderPatientList(searchTerm = '') {
             .toUpperCase();
 
         card.innerHTML = `
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 rounded-lg ${isSelected ? 'bg-clinical-600 text-white' : 'bg-slate-100 text-slate-600'} font-bold flex items-center justify-center text-xs shrink-0">
-                        ${initials || 'P'}
+            <div class="card-header p-3 cursor-pointer transition ${isSelected ? 'bg-clinical-50/80' : 'bg-white hover:bg-slate-50'}">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <div class="w-9 h-9 rounded-lg ${isSelected ? 'bg-clinical-600 text-white' : 'bg-slate-100 text-slate-600'} font-bold flex items-center justify-center text-xs shrink-0">
+                            ${initials || 'P'}
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-slate-900 text-xs sm:text-sm leading-snug truncate">${p.name}</h4>
+                            <p class="text-[11px] text-slate-500">${p.time}${p.age ? ` • ${p.age}` : ''}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h4 class="font-bold text-slate-900 text-xs sm:text-sm leading-snug">${p.name}</h4>
-                        <p class="text-[11px] text-slate-500">${p.time}${p.age ? ` • ${p.age}` : ''}</p>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border ${badgeClass}">
+                            <i data-lucide="${statusIcon}" class="w-3 h-3"></i>
+                            ${badgeText}
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 lg:hidden transition-transform ${isSelected ? 'rotate-180' : ''}"></i>
                     </div>
-                </div>
-                <div class="flex flex-col items-end gap-1">
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border ${badgeClass}">
-                        <i data-lucide="${statusIcon}" class="w-3 h-3"></i>
-                        ${badgeText}
-                    </span>
                 </div>
             </div>
+            <div id="patient-card-slot-${p.id}" class="patient-card-slot lg:hidden border-t border-clinical-100 ${isSelected ? '' : 'hidden'}"></div>
         `;
+        card.querySelector('.card-header').onclick = () => handleCardClick(p.id);
         container.appendChild(card);
     });
 
     lucide.createIcons();
+    relocatePatientFormPanel();
+}
+
+// No mobile/tablet (<lg), clicar num card já selecionado fecha o
+// accordion; num card diferente, troca a seleção normalmente. No desktop
+// (painel fixo à direita) não existe conceito de "fechar", sempre seleciona.
+function handleCardClick(patientId) {
+    const isMobile = window.matchMedia('(max-width: 1023px)').matches;
+    if (isMobile && selectedPatientId === patientId) {
+        selectedPatientId = null;
+        document.getElementById('patient-form-panel').classList.add('hidden');
+        renderPatientList(document.getElementById('patient-search').value);
+        return;
+    }
+    selectPatient(patientId);
+}
+
+// Reposiciona o #patient-form-panel: no desktop ele mora fixo na seção da
+// direita (#patient-detail-panel); no mobile/tablet ele é movido pra dentro
+// do slot do card selecionado na lista, virando um accordion — mesmo
+// formulário, mesmos event handlers, só troca de lugar no DOM.
+function relocatePatientFormPanel() {
+    const panel = document.getElementById('patient-form-panel');
+    const isMobile = window.matchMedia('(max-width: 1023px)').matches;
+
+    if (!isMobile) {
+        const desktopHost = document.getElementById('patient-detail-panel');
+        if (panel.parentElement !== desktopHost) desktopHost.appendChild(panel);
+        document.getElementById('empty-state').classList.toggle('hidden', !!selectedPatientId);
+        panel.classList.toggle('hidden', !selectedPatientId);
+        return;
+    }
+
+    if (!selectedPatientId) {
+        panel.classList.add('hidden');
+        return;
+    }
+
+    const slot = document.getElementById(`patient-card-slot-${selectedPatientId}`);
+    if (slot && panel.parentElement !== slot) {
+        slot.appendChild(panel);
+    }
+    panel.classList.remove('hidden');
 }
 
 function selectPatient(patientId) {
@@ -804,5 +865,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     loadSchedule();
     checkAtendimentosPendentesAnteriores();
-    checkRelatoriosPendentesCiencia();
+    if (CONFIG.FEATURES.cienciaRelatorio) {
+        checkRelatoriosPendentesCiencia();
+    }
+
+    // Redimensionar a janela (ou girar um tablet) pode cruzar o breakpoint
+    // lg — reposiciona o painel entre a seção fixa (desktop) e o slot do
+    // card selecionado (mobile/tablet) quando isso acontece.
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(relocatePatientFormPanel, 150);
+    });
 });

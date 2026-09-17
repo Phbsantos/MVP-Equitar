@@ -127,8 +127,8 @@ function renderAtendimentoCard(atendimento) {
                         </button>
                     </div>
                     <p class="text-sm leading-relaxed line-clamp-4" style="color:var(--ink)">${escapeHtml(relatorio.conteudo) || '<span class="italic">Sem conteúdo registrado.</span>'}</p>
-                    ${relatorio.contestadoAtivo ? `<p class="text-[11px] font-semibold mt-1.5" style="color:var(--danger-600, #b91c1c)">O terapeuta não concorda com a última alteração deste relatório.</p>` : ''}
-                    ${relatorio.precisaCiencia ? `<p class="text-[11px] font-semibold mt-1.5" style="color:var(--brand-600)">Aguardando ciência do terapeuta sobre esta alteração.</p>` : ''}
+                    ${CONFIG.FEATURES.cienciaRelatorio && relatorio.contestadoAtivo ? `<p class="text-[11px] font-semibold mt-1.5" style="color:var(--danger-600, #b91c1c)">O terapeuta não concorda com a última alteração deste relatório.</p>` : ''}
+                    ${CONFIG.FEATURES.cienciaRelatorio && relatorio.precisaCiencia ? `<p class="text-[11px] font-semibold mt-1.5" style="color:var(--brand-600)">Aguardando ciência do terapeuta sobre esta alteração.</p>` : ''}
                 `
                         : `<p class="text-xs italic" style="color:var(--ink-faint)">Sem relatório vinculado a este atendimento.</p>`
                 }
@@ -292,8 +292,8 @@ function renderRelatorioCard(relatorio) {
 
             <p class="text-sm leading-relaxed" style="color:var(--ink)">${escapeHtml(relatorio.conteudo) || '<span class="italic">Sem conteúdo registrado.</span>'}</p>
 
-            ${relatorio.contestadoAtivo ? `<p class="text-[11px] font-semibold" style="color:var(--danger-600, #b91c1c)">O terapeuta não concorda com a última alteração deste relatório.</p>` : ''}
-            ${relatorio.precisaCiencia ? `<p class="text-[11px] font-semibold" style="color:var(--brand-600)">Aguardando ciência do terapeuta sobre esta alteração.</p>` : ''}
+            ${CONFIG.FEATURES.cienciaRelatorio && relatorio.contestadoAtivo ? `<p class="text-[11px] font-semibold" style="color:var(--danger-600, #b91c1c)">O terapeuta não concorda com a última alteração deste relatório.</p>` : ''}
+            ${CONFIG.FEATURES.cienciaRelatorio && relatorio.precisaCiencia ? `<p class="text-[11px] font-semibold" style="color:var(--brand-600)">Aguardando ciência do terapeuta sobre esta alteração.</p>` : ''}
         </div>
     `;
 }

@@ -2,6 +2,13 @@ const CONFIG = {
     TERAPEUTA: 'Dr. João Silva',
     TERAPEUTA_CREFITO: 'CREFITO-3/12345-TO',
     SUPERVISOR_NOME: 'Dr. João Silva',
+    // 2026-09-17: escondidas temporariamente pra apresentação ao cliente —
+    // features completas no backend, só desligadas na UI. Voltar pra true
+    // reativa sem precisar tocar em nada além daqui.
+    FEATURES: {
+        cienciaRelatorio: false,
+        sugestoesAtendimento: false,
+    },
     // 2026-09-16: backend saiu da máquina local de desenvolvimento e foi
     // pra uma VPS (Ubuntu 24.04) — mesma arquitetura (n8n self-hosted em
     // Docker + Postgres, ver db/n8n-workflows/ e db/migrations/). Rodou

@@ -260,6 +260,11 @@ async function initCardSugestoesPaciente() {
     const card = document.getElementById('card-sugestoes-paciente');
     if (!card) return;
 
+    if (!CONFIG.FEATURES.sugestoesAtendimento) {
+        card.classList.add('hidden');
+        return;
+    }
+
     if (!usuarioTemAcessoAdministrativo()) {
         card.classList.add('hidden');
         return;
